@@ -3,11 +3,15 @@ package com.datalab.siesta.queryprocessor.model.DBModel;
 
 import org.apache.spark.sql.Row;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.Map;
 import java.util.List;
 /**
  * A Metadata object contains all the metadata about a specific log database.
  */
+@Getter
 public class Metadata {
 
     /**
@@ -54,11 +58,6 @@ public class Metadata {
      */
     private Long pairs;
     /**
-     * That parameter shows every how many days will the IndexTable create a new segment. It is used
-     * to keep the length of the inverted lists manageable.
-     */
-    private Long split_every_days;
-    /**
      * Number of indexed traces
      */
     private Long traces;
@@ -66,6 +65,7 @@ public class Metadata {
     /**
      * The first timestamp of a log database
      */
+    @Setter
     private String start_ts;
 
     /**
@@ -73,9 +73,10 @@ public class Metadata {
      */
     private String last_ts;
 
-    private String key;
-
-    private String value;
+    /**
+     * The last timestamp of the event that was indexed for declare state
+     */
+    private String last_declare_mined;
 
     /**
      * Parse a json row. Utilized in S3, as metadata stored in json format
@@ -94,9 +95,10 @@ public class Metadata {
         this.lookback = l.longValue();
         this.mode = json.getAs("mode");
         this.pairs = json.getAs("pairs");
-//        Integer s = json.getAs("split_every_days");
-//        this.split_every_days = s.longValue();
         this.traces = json.getAs("traces");
+        this.last_declare_mined = json.getAs("last_declare_mined");
+        this.last_ts = json.getAs("last_ts");
+        this.start_ts = json.getAs("start_ts");
     }
 
     /**
@@ -134,13 +136,14 @@ public class Metadata {
         this.lookback = Long.valueOf(attributes.get("lookback"));
         this.mode = attributes.get("mode");
         this.pairs = Long.valueOf(attributes.get("pairs"));
-        this.split_every_days = Long.valueOf(attributes.get("split_every_days"));
         this.traces = Long.valueOf(attributes.get("traces"));
+        this.last_declare_mined = attributes.get("last_declare_mined");
+        this.last_ts = attributes.get("last_ts");
+        this.start_ts = attributes.get("start_ts");
     }
 
     public Metadata() {
     }
-
     public String getCompression() {
         return compression;
     }
