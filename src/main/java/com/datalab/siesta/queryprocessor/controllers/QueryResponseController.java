@@ -5,13 +5,11 @@ import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.QueryPlan;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponse;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponseGroups;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponsePatternDetection;
+import com.datalab.siesta.queryprocessor.model.Queries.QueryTypes.QueryAttributes;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryTypes.QueryExploration;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryTypes.QueryPatternDetection;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryTypes.QueryStats;
-import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryExploreWrapper;
-import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryMetadataWrapper;
-import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryPatternDetectionWrapper;
-import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryStatsWrapper;
+import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.*;
 import com.datalab.siesta.queryprocessor.services.LoadInfo;
 import com.datalab.siesta.queryprocessor.services.LoadedEventTypes;
 import com.datalab.siesta.queryprocessor.services.LoadedMetadata;
@@ -38,6 +36,7 @@ public class QueryResponseController {
 
     private LoadedMetadata allMetadata;
     private final QueryStats qs;
+    private final QueryAttributes qa;
     private final QueryPatternDetection qpd;
     private final QueryExploration queryExploration;
     private final ObjectMapper objectMapper;
@@ -45,11 +44,12 @@ public class QueryResponseController {
     private final LoadInfo loadInfo;
 
     @Autowired
-    public QueryResponseController(LoadedMetadata allMetadata, QueryStats qs,
+    public QueryResponseController(LoadedMetadata allMetadata, QueryStats qs, QueryAttributes qa,
                                    QueryPatternDetection qpd, QueryExploration queryExploration,
                                    ObjectMapper objectMapper, LoadedEventTypes loadedEventTypes, LoadInfo loadInfo) {
         this.allMetadata = allMetadata;
         this.qs = qs;
+        this.qa = qa;
         this.qpd = qpd;
         this.queryExploration = queryExploration;
         this.objectMapper = objectMapper;
@@ -159,5 +159,18 @@ public class QueryResponseController {
             QueryResponse qrs = qp.execute(queryExploreWrapper);
             return new ResponseEntity<>(objectMapper.writeValueAsString(qrs), HttpStatus.OK);
         }
+    }
+
+    @RequestMapping(path = "/attributes", method = RequestMethod.POST)
+    public ResponseEntity<MappingJacksonValue> getAttributes(@RequestBody QueryAttributesWrapper qaw) {
+        String logname = qaw.getLog_name();
+        Metadata m = allMetadata.getMetadata(logname);
+        if (m == null){
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        QueryPlan qp = qa.createQueryPlan(qaw, m);
+        QueryResponse qra = qp.execute(qaw);
+        MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(qra);
+        return new ResponseEntity<>(mappingJacksonValue, HttpStatus.OK);
     }
 }

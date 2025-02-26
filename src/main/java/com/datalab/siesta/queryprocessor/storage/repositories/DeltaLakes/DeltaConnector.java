@@ -206,7 +206,10 @@ public class DeltaConnector extends SparkDatabaseRepository {
                 .collect();
     }
 
-
+    @Override
+    public List<String> getAttributes(String logname) {
+        return null;
+    }
     @Override
     protected JavaRDD<Trace> querySequenceTablePrivate(String logname, Broadcast<Set<String>> bTraceIds) {
         return querySequenceTableDeclare(logname)

@@ -67,6 +67,10 @@ public class DBConnector {
         return db.getCounts(logname, eventPairs);
     }
 
+    public List<String> getAttributes(String logname) {
+        return db.getAttributes(logname);
+    }
+
     /**
      * For a given event type inside a log database, returns all the possible next events. That is, since Count
      * contains for each pair the stats, return all the events that have at least one pair with the given event

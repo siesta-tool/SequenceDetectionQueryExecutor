@@ -169,6 +169,23 @@ public class S3Connector extends SparkDatabaseRepository {
     }
 
     @Override
+    public List<String> getAttributes(String logname) {
+        String path = String.format("%s%s%s", bucket, logname, "/seq.parquet/");
+
+        Dataset<Row> df = sparkSession.read().parquet(path).select("attributes").toDF();
+
+        System.out.println(df);
+
+        Dataset<Row> keysDf = df.select(functions.explode(functions.map_keys(df.col("attributes"))).alias("key"));
+
+        return keysDf.dropDuplicates()
+                .collectAsList()
+                .stream()
+                .map(row -> row.getString(0)) // Extract string from Row
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<Count> getEventPairs(String logname) {
         String path = String.format("%s%s%s", bucket, logname, "/count.parquet/");
         List<Count> counts = sparkSession.read()
