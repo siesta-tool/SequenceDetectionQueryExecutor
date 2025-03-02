@@ -99,97 +99,75 @@ public class S3Connector extends SparkDatabaseRepository {
     @Override
     public List<Count> getCountForExploration(String logname, String event) {
         String path = String.format("%s%s%s", bucket, logname, "/count.parquet/");
-        List<Count> counts = sparkSession.read()
-                .parquet(path)
+        Dataset<Row> df = sparkSession.read().parquet(path);
+        Dataset<Row> explodedDf = df
                 .where(String.format("eventA = '%s'", event))
-                .toJavaRDD()
-                .flatMap((FlatMapFunction<Row, Count>) row -> {
-                    String eventA = row.getString(1);
-                    List<Row> countRecords = JavaConverters.seqAsJavaList(row.getSeq(0));
-                    List<Count> c = new ArrayList<>();
-                    for (Row v1 : countRecords) {
-                        String eventB = v1.getString(0);
-                        long sum_duration = v1.getLong(1);
-                        int count = v1.getInt(2);
-                        long min_duration = v1.getLong(3);
-                        long max_duration = v1.getLong(4);
-                        double sum_squared = v1.getDouble(5);
-                        c.add(new Count(eventA, eventB, sum_duration, count, min_duration, max_duration, sum_squared));
-                    }
-                    return c.iterator();
-                }).collect();
-        return new ArrayList<>(counts);
+                .withColumn("countRecord", functions.explode(
+                        df.col("times")))
+                .select(
+                        df.col("eventA"),
+                        functions.col("countRecord._1").alias("eventB"),
+                        functions.col("countRecord._2").alias("sumDuration"),
+                        functions.col("countRecord._3").alias("count"),
+                        functions.col("countRecord._4").alias("minDuration"),
+                        functions.col("countRecord._5").alias("maxDuration"),
+                        functions.col("countRecord._6").alias("sumSquares")
+                );
+        List<Count> counts = explodedDf.as(Encoders.bean(Count.class))
+                .collectAsList();
+        return counts;
     }
 
     @Override
     public List<Count> getCounts(String logname, Set<EventPair> pairs) {
         String path = String.format("%s%s%s", bucket, logname, "/count.parquet/");
         String firstFilter = pairs.stream().map(x -> x.getEventA().getName()).collect(Collectors.toSet())
-                .stream().map(x -> String.format("eventA = '%s'", x)).collect(Collectors.joining(" or "));
-        Broadcast<Set<EventPair>> b_pairs = javaSparkContext.broadcast(pairs);
-        List<Count> counts = sparkSession.read()
-                .parquet(path)
-                .where(firstFilter)
-                .toJavaRDD()
-                .flatMap((FlatMapFunction<Row, Count>) row -> {
-                    String eventA = row.getString(1);
-                    List<Row> countRecords = JavaConverters.seqAsJavaList(row.getSeq(0));
-                    List<Count> c = new ArrayList<>();
-                    for (Row v1 : countRecords) {
-                        String eventB = v1.getString(0);
-                        long sum_duration = v1.getLong(1);
-                        int count = v1.getInt(2);
-                        long min_duration = v1.getLong(3);
-                        long max_duration = v1.getLong(4);
-                        double sum_squares = v1.getDouble(5);
-                        c.add(new Count(eventA, eventB, sum_duration, count, min_duration, max_duration, sum_squares));
-                    }
-                    return c.iterator();
-                })
-                .filter((Function<Count, Boolean>) c -> {
-                    for (EventPair p : b_pairs.getValue()) {
-                        if (c.getEventA().equals(p.getEventA().getName()) && c.getEventB().equals(p.getEventB().getName())) {
-                            return true;
-                        }
-                    }
-                    return false;
-                })
-                .collect();
-        List<Count> response = new ArrayList<>();
-        pairs.forEach(p -> {
-            for (Count c : counts) {
-                if (c.getEventA().equals(p.getEventA().getName()) && c.getEventB().equals(p.getEventB().getName())) {
-                    response.add(c);
-                    break;
-                }
-            }
-        });
+                .stream().map(x -> String.format("eventA = '%s'", x))
+                .collect(Collectors.joining(" or "));
+        String secondFilter = pairs.stream().map(x->new Tuple2<>(x.getEventA().getName(),x.getEventB().getName()))
+                .collect(Collectors.toSet())
+                .stream().map(x->String.format("(eventA = '%s' and eventB = '%s')",x._1(),x._2()))
+                .collect(Collectors.joining(" or "));
 
-        return response;
+        Dataset<Row> df = sparkSession.read().parquet(path);
+        Dataset<Row> explodedDf = df
+            .filter(firstFilter)
+            .withColumn("countRecord", functions.explode(
+            df.col("times")))
+            .select(
+                df.col("eventA"),
+                functions.col("countRecord._1").alias("eventB"),
+                functions.col("countRecord._2").alias("sumDuration"),
+                functions.col("countRecord._3").alias("count"),
+                functions.col("countRecord._4").alias("minDuration"),
+                functions.col("countRecord._5").alias("maxDuration"),
+                functions.col("countRecord._6").alias("sumSquares")
+            );
+        Dataset<Count> countDataset = explodedDf.as(Encoders.bean(Count.class));
+        List<Count>  counts = countDataset.filter(secondFilter)
+                .collectAsList();
+
+        return counts;
     }
 
     @Override
     public List<Count> getEventPairs(String logname) {
         String path = String.format("%s%s%s", bucket, logname, "/count.parquet/");
-        List<Count> counts = sparkSession.read()
-                .parquet(path)
-                .toJavaRDD()
-                .flatMap((FlatMapFunction<Row, Count>) row -> {
-                    String eventA = row.getString(1);
-                    List<Row> countRecords = JavaConverters.seqAsJavaList(row.getSeq(0));
-                    List<Count> c = new ArrayList<>();
-                    for (Row v1 : countRecords) {
-                        String eventB = v1.getString(0);
-                        long sum_duration = v1.getLong(1);
-                        int count = v1.getInt(2);
-                        long min_duration = v1.getLong(3);
-                        long max_duration = v1.getLong(4);
-                        double sum_squares = v1.getDouble(5);
-                        c.add(new Count(eventA, eventB, sum_duration, count, min_duration, max_duration, sum_squares));
-                    }
-                    return c.iterator();
-                })
-                .collect();
+        Dataset<Row> df = sparkSession.read().parquet(path);
+        Dataset<Row> explodedDf = df
+                .withColumn("countRecord", functions.explode(
+                        df.col("times")))
+                .select(
+                        df.col("eventA"),
+                        functions.col("countRecord._1").alias("eventB"),
+                        functions.col("countRecord._2").alias("sumDuration"),
+                        functions.col("countRecord._3").alias("count"),
+                        functions.col("countRecord._4").alias("minDuration"),
+                        functions.col("countRecord._5").alias("maxDuration"),
+                        functions.col("countRecord._6").alias("sumSquares")
+                );
+        List<Count> counts = explodedDf.as(Encoders.bean(Count.class))
+                .collectAsList();
         return counts;
     }
 
@@ -199,9 +177,8 @@ public class S3Connector extends SparkDatabaseRepository {
         return sparkSession.read().parquet(path)
                 .select("event_type")
                 .distinct()
-                .toJavaRDD()
-                .map((Function<Row, String>) row -> row.getString(0))
-                .collect();
+                .as(Encoders.STRING())
+                .collectAsList();
     }
 
 
