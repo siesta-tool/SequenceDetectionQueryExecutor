@@ -192,8 +192,8 @@ public class PatternAnalysisController {
      */
     private double getCV(Count pair) {
         double norm_factor = 1.0 / pair.getCount();
-        double mean = (double) pair.getSum_duration() / pair.getCount();
-        double var = norm_factor * (pair.getSum_squares() - norm_factor * Math.pow(pair.getSum_duration(), 2));
+        double mean = (double) pair.getSumDuration() / pair.getCount();
+        double var = norm_factor * (pair.getSumSquares() - norm_factor * Math.pow(pair.getSumDuration(), 2));
         return var / mean;
     }
 

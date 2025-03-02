@@ -76,7 +76,7 @@ public class QueryPlanExplorationFast implements QueryPlan {
         for (Count freq : freqs) {
             int upper = Math.min(lastCompletions, freq.getCount());
             Proposition prop = new Proposition(freq.getEventB(), upper,
-                    (double) freq.getSum_duration() / freq.getCount());
+                    (double) freq.getSumDuration() / freq.getCount());
             if (upper != 0)
                 propositions.add(prop);
         }
