@@ -11,6 +11,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 
+import java.io.File;
+
 /**
  * Contains the configuration of spark in he.maven.plugins:maven-compiler-plugin:3.13.0:compile (default-compile) on project siesta-query-processor: Fatal error compiling: error: release version 17 not supported -> [Help 1]
 order to connect to s3 database
@@ -45,6 +47,8 @@ public class SparkConfiguration {
 
     @Bean
     public SparkConf sparkConf() {
+        String jarPath = new File("src/main/resources/jars").getAbsolutePath();
+
         return new SparkConf()
                 .setAppName(appName)
                 .setMaster(masterUri)
@@ -54,6 +58,10 @@ public class SparkConfiguration {
 //                .set("spark.driver.memoryOverhead","2g")
 //                .set("spark.memory.fraction","0.8")
 //                .set("spark.memory.storageFraction","0.5")
+                .set("spark.jars", jarPath + "/hadoop-aws-3.3.4.jar,"
+                        + jarPath + "/aws-java-sdk-bundle-1.12.262.jar,"
+                        + jarPath + "/hadoop-client-3.3.4.jar" )
+//                .set("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
                 .set("spark.driver.maxResultSize","5g");
     }
 
