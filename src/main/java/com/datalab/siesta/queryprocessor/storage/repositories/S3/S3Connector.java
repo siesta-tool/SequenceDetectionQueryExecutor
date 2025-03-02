@@ -210,62 +210,19 @@ public class S3Connector extends SparkDatabaseRepository {
 
 
     @Override
-    protected JavaPairRDD<Tuple2<String, String>, java.lang.Iterable<IndexPair>> getAllEventPairs(Set<EventPair> pairs,
-                                                                                                  String logname,
-                                                                                                  Metadata metadata,
-                                                                                                  Timestamp from,
+    protected Dataset<IndexPair> getAllEventPairs(Set<EventPair> pairs, String logname,Metadata metadata,Timestamp from,
                                                                                                   Timestamp till) {
         String path = String.format("%s%s%s", bucket, logname, "/index.parquet/");
-        Broadcast<Set<EventPair>> bPairs = javaSparkContext.broadcast(pairs);
-        Broadcast<String> mode = javaSparkContext.broadcast(metadata.getMode());
-        Broadcast<Timestamp> bFrom = javaSparkContext.broadcast(from);
-        Broadcast<Timestamp> bTill = javaSparkContext.broadcast(till);
-
-        List<String> whereStatements = new ArrayList<>();
-        whereStatements.add(
-                pairs.stream().map(x -> x.getEventA().getName()).distinct()
-                        .map(p -> String.format("eventA = '%s'", p))
-                        .collect(Collectors.joining(" or ")));
-
-        for (int i = 0; i < whereStatements.size(); i++) {
-            whereStatements.set(i, String.format("( %s )", whereStatements.get(i)));
-        }
-        String whereStatement = String.join(" and ", whereStatements);
-
-        JavaPairRDD<Tuple2<String, String>, java.lang.Iterable<IndexPair>> rows = sparkSession.read()
+        String filter = pairs.stream().map(x->new Tuple2<>(x.getEventA().getName(),x.getEventB().getName()))
+                .collect(Collectors.toSet())
+                .stream().map(x->String.format("(eventA = '%s' and eventB = '%s')",x._1(),x._2()))
+                .collect(Collectors.joining(" or "));
+        Dataset<Row> extractedRows = sparkSession.read()
                 .parquet(path)
-                .where(whereStatement)
-                .toJavaRDD()
-                .flatMap((FlatMapFunction<Row, IndexPair>) row -> {
-                    String eventA = row.getAs("eventA");
-                    String eventB = row.getAs("eventB");
-                    boolean checkContained = false;
-                    for (EventPair ep : bPairs.getValue()) {
-                        if (eventA.equals(ep.getEventA().getName()) && eventB.equals(ep.getEventB().getName())) {
-                            checkContained = true;
-                            break;
-                        }
-                    }
-                    List<IndexPair> response = new ArrayList<>();
-                    if (checkContained) {
-                        String tid = row.getAs("trace_id");
-                        if (mode.getValue().equals("positions")) {
-                            int posA = row.getAs("positionA");
-                            int posB = row.getAs("positionB");
-                            response.add(new IndexPair(tid, eventA, eventB, posA, posB));
-                        } else {
-                            Timestamp tsA = row.getAs("timestampA");
-                            Timestamp tsB = row.getAs("timestampB");
-                            if (!(bTill.value() != null && tsA.after(bTill.value()) ||
-                                    bFrom.value() != null && tsB.before(bFrom.value()))) {
-                                response.add(new IndexPair(tid, eventA, eventB, tsA, tsB));
-                            }
-                        }
-                    }
-                    return response.iterator();
-                })
-                .groupBy((Function<IndexPair, Tuple2<String, String>>) indexPair -> new Tuple2<>(indexPair.getEventA(), indexPair.getEventB()));
-        return rows;
+                .where(filter);
+
+        Dataset<IndexPair> indexRecords = super.transformToIndexPairSet(extractedRows,from,till);
+        return indexRecords;
     }
 
 

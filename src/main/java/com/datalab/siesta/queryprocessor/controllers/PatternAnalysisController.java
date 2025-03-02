@@ -176,7 +176,7 @@ public class PatternAnalysisController {
         List<IndexPair> legitimateInstances = new ArrayList<>();
         List<IndexPair> illegitimateInstances = new ArrayList<>();
         indexRecords.forEach((et, instances) -> instances.forEach(instance -> {
-            if (legitimateTraces.contains(instance.getTraceId())) {
+            if (legitimateTraces.contains(instance.getTrace_id())) {
                 legitimateInstances.add(instance);
             } else {
                 illegitimateInstances.add(instance);

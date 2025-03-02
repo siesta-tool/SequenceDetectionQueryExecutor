@@ -11,7 +11,8 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.broadcast.Broadcast;
-import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.*;
+import org.apache.spark.sql.types.StructType;
 import org.apache.spark.storage.StorageLevel;
 import org.springframework.beans.factory.annotation.Autowired;
 import scala.Tuple2;
@@ -45,31 +46,36 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
     /**
      * return all the IndexPairs grouped by the eventA and eventB
      * needs to be implemented by each different connector
-     * @param pairs set of the pairs
+     *
+     * @param pairs   set of the pairs
      * @param logname the log database
      * @return extract the pairs
      */
-    protected JavaPairRDD<Tuple2<String, String>, java.lang.Iterable<IndexPair>> getAllEventPairs(Set<EventPair> pairs, String logname, Metadata metadata, Timestamp from, Timestamp till) {
+    protected Dataset<IndexPair> getAllEventPairs(Set<EventPair> pairs,
+                                                  String logname, Metadata metadata, Timestamp from, Timestamp till) {
         return null;
     }
 
     /**
      * return all the IndexPairs grouped by the eventA and eventB
      * needs to be implemented by each different connector
-     * @param pairs set of the pairs
+     *
+     * @param pairs   set of the pairs
      * @param logname the log database
      * @return extract the pairs
      */
-    protected JavaPairRDD<Tuple2<String, String>, java.lang.Iterable<IndexPair>> getAllEventPairs(Set<EventPair> pairs, String logname) {
+    protected JavaPairRDD<Tuple2<String, String>, java.lang.Iterable<IndexPair>> getAllEventPairs(Set<EventPair> pairs,
+                                                                                                  String logname) {
         return null;
     }
 
     /**
      * Retrieves the appropriate events from the SequenceTable, which contains the original traces
-     * @param logname the log database
+     *
+     * @param logname  the log database
      * @param traceIds the ids of the traces that will be retrieved
      * @return a map where the key is the trace id and the value is a list of the retrieved events (with their
-     *      * timestamps)
+     * * timestamps)
      */
     @Override
     public Map<String, List<EventBoth>> querySeqTable(String logname, List<String> traceIds) {
@@ -82,11 +88,12 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
 
     /**
      * Retrieves the appropriate events from the SequenceTable, which contains the original traces
-     * @param logname the log database
-     * @param traceIds the ids of the traces that will be retrieved
+     *
+     * @param logname    the log database
+     * @param traceIds   the ids of the traces that will be retrieved
      * @param eventTypes the events that will be retrieved
-     * @param from the starting timestamp, set to null if not used
-     * @param till the ending timestamp, set to null if not used
+     * @param from       the starting timestamp, set to null if not used
+     * @param till       the ending timestamp, set to null if not used
      * @return a map where the key is the trace id and the value is a list of the retrieved events (with their
      * timestamps)
      */
@@ -120,7 +127,8 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
 
     /**
      * Retrieves data from the primary inverted index
-     * @param pairs a set of the pairs that we need to retrieve information for
+     *
+     * @param pairs   a set of the pairs that we need to retrieve information for
      * @param logname the log database
      * @return the corresponding records from the index
      */
@@ -133,18 +141,21 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
 
     /**
      * Retrieves data from the primary inverted index
-     * @param pairs a set of the pairs that we need to retrieve information for
-     * @param logname the log database
+     *
+     * @param pairs    a set of the pairs that we need to retrieve information for
+     * @param logname  the log database
      * @param metadata the metadata for this log database
-     * @param from the starting timestamp, set to null if not used
-     * @param till the ending timestamp, set to null if not used
+     * @param from     the starting timestamp, set to null if not used
+     * @param till     the ending timestamp, set to null if not used
      * @return the corresponding records from the index
      */
     @Override
     public IndexRecords queryIndexTable(Set<EventPair> pairs, String logname, Metadata metadata, Timestamp from, Timestamp till) {
-        List<Tuple2<Tuple2<String, String>, Iterable<IndexPair>>> results = this.getAllEventPairs(pairs, logname, metadata, from, till)
-                .collect();
-        return new IndexRecords(results);
+        //TODO: fix this to run Emergencyy
+//        List<Tuple2<Tuple2<String, String>, Iterable<IndexPair>>> results = this.getAllEventPairs(pairs, logname, metadata, from, till)
+//                .collect();
+//        return new IndexRecords(results);
+        return null;
     }
 
     protected JavaRDD<IndexPair> getPairs(JavaPairRDD<Tuple2<String, String>, java.lang.Iterable<IndexPair>> pairs) {
@@ -153,89 +164,122 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
 
     /**
      * Extract the ids of the traces that contains all the provided pairs
-     * @param pairs pairs retrieved from the storage
+     *
+     * @param pairs          pairs retrieved from the storage
      * @param trueEventPairs the pairs that required to appear in a trace in order to be a candidate
      * @return the candidate trace ids
      */
-    protected List<String> getCommonIds(JavaRDD<IndexPair> pairs, Set<EventPair> trueEventPairs) {
-        Broadcast<Set<EventPair>> truePairs = javaSparkContext.broadcast(trueEventPairs);
-        return pairs.map((Function<IndexPair, Tuple3<String, String, String>>) pair ->
-                        new Tuple3<>(pair.getEventA(), pair.getEventB(), pair.getTraceId()))
-                .distinct() //remove all the duplicate event pairs that refer to the same trace
-                .groupBy((Function<Tuple3<String, String, String>, String>) Tuple3::_3)
-                .map((Function<Tuple2<String, Iterable<Tuple3<String, String, String>>>, Tuple2<String,Integer>>)x->{
-                    AtomicInteger acc = new AtomicInteger(0);
-                    x._2.forEach(pair-> {
-                        Optional<EventPair> op =truePairs.getValue().stream().filter(y->y.getEventA().getName().equals(pair._1())&&
-                                y.getEventB().getName().equals(pair._2())).findFirst();
-                        if(op.isPresent()) acc.incrementAndGet();
-                    });
-                    return new Tuple2<>(x._1, acc.get());
-                } )
-                .filter((Function<Tuple2<String, Integer>, Boolean>) p -> p._2 == truePairs.getValue().size())
-                .map((Function<Tuple2<String, Integer>, String>) p -> p._1)
-                .collect();
+    protected List<String> getCommonIds(Dataset<IndexPair> pairs, Set<EventPair> trueEventPairs) {
+        Set<EventTypes> truePairs = trueEventPairs.stream()
+                .map(x -> new EventTypes(x.getEventA().getName(), x.getEventB().getName()))
+                .collect(Collectors.toSet());
+        String eventFilter = truePairs.stream()
+                .map(x -> String.format("(eventA = '%s' AND eventB = '%s')", x.getEventA(), x.getEventB()))
+                .collect(Collectors.joining(" OR "));
+
+        // Next sequence extract the ids of the traces that contains all the required et-pairs (iun the truePairs list)
+        List<String> listOfTraces = pairs
+                .select("eventA", "eventB", "trace_id") // Maintain the required fields
+                .distinct() // Remove duplicates
+                .where(eventFilter) // Maintain only the et-pairs in the true pairs
+                .groupBy("trace_id") // Group based on the trace id
+                .agg(functions.count("*").alias("valid_et_pairs")) // Count how many of the valid pairs each trace has
+                .filter(functions.col("valid_et_pairs").equalTo(truePairs.size()))// Keeps thr traces that have all valid et-pairs
+                .select("trace_id") // Return the trace_ids
+                .as(Encoders.STRING()) //Transform to string
+                .collectAsList(); //Collect as List
+        return listOfTraces;
     }
 
     /**
      * Filters te results based on the starting and ending timestamp
-     * @param pairs the retrieved pairs from the IndexTable
+     *
+     * @param pairs    the retrieved pairs from the IndexTable
      * @param traceIds the trace ids that contains all the required pairs
-     * @param from the starting timestamp, set to null if not used
-     * @param till the ending timestamp, set to null if not used
+     * @param from     the starting timestamp, set to null if not used
+     * @param till     the ending timestamp, set to null if not used
      * @return the intermediate results, i.e. the candidate traces before remove false positives
      */
-    protected IndexMiddleResult addFilterIds(JavaRDD<IndexPair> pairs, List<String> traceIds, Timestamp from, Timestamp till) {
-        Broadcast<Set<String>> bTraces = javaSparkContext.broadcast(new HashSet<>(traceIds));
-        Broadcast<Timestamp> bFrom = javaSparkContext.broadcast(from);
-        Broadcast<Timestamp> bTill = javaSparkContext.broadcast(till);
-        JavaRDD<IndexPair> filtered = pairs.filter((Function<IndexPair, Boolean>) pair ->
-                bTraces.getValue().contains(pair.getTraceId()));
+    protected IndexMiddleResult addFilterIds(Dataset<IndexPair> pairs, List<String> traceIds, Timestamp from, Timestamp till) {
         IndexMiddleResult imr = new IndexMiddleResult();
         imr.setTrace_ids(traceIds);
-        Map<String, List<Event>> events = filtered.flatMap((FlatMapFunction<IndexPair, Event>) indexPair -> indexPair.getEvents().iterator())
-                .groupBy((Function<Event, String>) Event::getTraceID)
-                .mapValues((Function<Iterable<Event>, List<Event>>) p -> {
-                    Set<Event> eventSet = new HashSet<>();
-                    for (Event ev : p) {
-                        if (ev instanceof EventPos) eventSet.add(ev);
-                        else {
-                            EventTs et = (EventTs) ev;
-                            if (bFrom.value() != null & bTill.value() != null) {
-                                if (!et.getTimestamp().before(bFrom.value()) && !et.getTimestamp().after(bTill.value())) {
-                                    eventSet.add(ev);
-                                }
-                            } else if (bFrom.value() != null) {
-                                if (!et.getTimestamp().before(bFrom.value())) {
-                                    eventSet.add(ev);
-                                }
-                            } else if (bTill.value() != null) {
-                                if (!et.getTimestamp().after(bTill.value())) {
-                                    eventSet.add(ev);
-                                }
-                            } else {
-                                eventSet.add(ev);
-                            }
+        // Filter to maintain only the pruned traces
+        Dataset<IndexPair> filteredDf = pairs.filter(functions.col("trace_id").isin(traceIds.toArray()));
+        // Extract EventBoth from the IndexPair
+        Dataset<EventModel> eventsDf = this.getEventsFromIndexRecords(filteredDf);
+
+        // Check if timestamp filtering is needed
+        boolean filterByTime = from != null || till != null;
+
+        if (filterByTime) {
+            Dataset<Row> rows = eventsDf.withColumn("timestamp-2",
+                    functions.to_timestamp(functions.col("timestamp"), "yyyy-MM-dd HH:mm:ss"));
+            if (from != null) {
+                rows = rows.filter(
+                        functions.col("timestamp-2").isNull().or(
+                                functions.col("timestamp-2").geq(from)));
+            }
+            if (till != null) {
+                rows = rows.filter(
+                        functions.col("timestamp-2").isNull().or(
+                                functions.col("timestamp-2").leq(till)));
+            }
+            eventsDf = rows.select("eventName", "traceId", "position", "timestamp")
+                    .as(Encoders.bean(EventModel.class));
+        }
+
+        Dataset<Row> groupedDf = eventsDf
+                .withColumn("event", functions.struct("traceId", "eventName", "position", "timestamp"))
+                .groupBy("traceId")
+                .agg(functions.collect_list("event").alias("events"))
+                .select("traceId", "events");
+
+        // Convert DataFrame to Map<String, List<Event>>
+        Map<String, List<Event>> eventsMap = groupedDf
+                .collectAsList()
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> row.getString(0),
+                        row -> {
+                            List<Row> eventRows = row.getList(1);
+                            return eventRows.stream()
+                                    .map(eventRow -> {
+                                        if (eventRow.getString(3) == null) {
+                                            return new EventPos(
+                                                    eventRow.getString(1), // eventName
+                                                    eventRow.getString(0), // traceId
+                                                    eventRow.getInt(2)    // position
+                                            );
+                                        } else {
+                                            return new EventTs(
+                                                    eventRow.getString(1), // eventName
+                                                    eventRow.getString(0), // traceId
+                                                    Timestamp.valueOf(eventRow.getString(3))// timestamp
+                                            );
+                                        }
+                                    })
+                                    .collect(Collectors.toList());
                         }
-                    }
-                    List<Event> eventsList = new ArrayList<>(eventSet);
-                    Collections.sort(eventsList);
-                    return eventsList;
-                })
-                .collectAsMap();
-        imr.setEvents(events);
+                ));
+
+        eventsMap.forEach((key, eventList) -> Collections.sort(eventList));
+        imr.setEvents(eventsMap);
+
         return imr;
+
     }
+
 
 
     /**
      * Detects the traces that contain all the given event pairs
-     * @param logname the log database
+     *
+     * @param logname  the log database
      * @param combined a list where each event pair is combined with the according stats from the CountTable
      * @param metadata the log database metadata
-     * @param expairs the event pairs extracted from the query
-     * @param from the starting timestamp, set to null if not used
-     * @param till the ending timestamp, set to null if not used
+     * @param expairs  the event pairs extracted from the query
+     * @param from     the starting timestamp, set to null if not used
+     * @param till     the ending timestamp, set to null if not used
      * @return the traces that contain all the pairs. It will be then processed by SASE in order to remove false
      * positives.
      */
@@ -243,8 +287,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
     public IndexMiddleResult patterDetectionTraceIds(String logname, List<Tuple2<EventPair, Count>> combined, Metadata metadata,
                                                      ExtractedPairsForPatternDetection expairs, Timestamp from, Timestamp till) {
         Set<EventPair> pairs = combined.stream().map(x -> x._1).collect(Collectors.toSet());
-        JavaPairRDD<Tuple2<String, String>, java.lang.Iterable<IndexPair>> gpairs = this.getAllEventPairs(pairs, logname, metadata, from, till);
-        JavaRDD<IndexPair> indexPairs = this.getPairs(gpairs);
+        Dataset<IndexPair> indexPairs = this.getAllEventPairs(pairs, logname, metadata, from, till);
         indexPairs.persist(StorageLevel.MEMORY_AND_DISK());
         List<String> traces = this.getCommonIds(indexPairs, expairs.getTruePairs());
         IndexMiddleResult imr = this.addFilterIds(indexPairs, traces, from, till);
@@ -262,11 +305,11 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
      */
     protected JavaRDD<EventBoth> getFromSingle(String logname, Set<String> traceIds, Set<String> eventTypes) {
         Broadcast<Set<String>> bTraces = javaSparkContext.broadcast(traceIds);
-        return queryFromSingle(logname,eventTypes).filter((Function<EventBoth, Boolean>) event->
+        return queryFromSingle(logname, eventTypes).filter((Function<EventBoth, Boolean>) event ->
                 bTraces.getValue().contains(event.getTraceID()));
     }
 
-    protected JavaRDD<EventBoth> queryFromSingle(String logname, Set<String> eventTypes){
+    protected JavaRDD<EventBoth> queryFromSingle(String logname, Set<String> eventTypes) {
         return null;
     }
 
@@ -285,8 +328,9 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
 
     /**
      * Retrieves the appropriate events from the SingleTable, which contains the single inverted index
-     * @param logname the log database
-     * @param traceIds the ids of the traces that wil be retrieved
+     *
+     * @param logname    the log database
+     * @param traceIds   the ids of the traces that wil be retrieved
      * @param eventTypes the events that will we retrieved
      * @return a list of all the retrieved events (wth their timestamps)
      */
@@ -297,8 +341,9 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
 
     /**
      * Retrieves the appropriate events from the SingleTable, which contains the single inverted index
-     * @param logname the log database
-     * @param groups a list of the groups as defined in the query
+     *
+     * @param logname    the log database
+     * @param groups     a list of the groups as defined in the query
      * @param eventTypes the events that will we retrieved
      * @return a map where the key is the group id and the value is a list of the retrieved events (with their t
      * imestamps)
@@ -335,9 +380,75 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         return response;
     }
 
+    /**
+     * This method transforms the rows read from the Database to IndexPair. Since SIESTA supports both timestamp
+     * and positions, this method is responsible to extract the schema and make the corresponding changes. Finally,
+     * since this is the place that identifies if there are timestamps in the index, we have also included the
+     * from/till filtering
+     *
+     * @param indexRows
+     * @return
+     */
+    protected Dataset<IndexPair> transformToIndexPairSet(Dataset<Row> indexRows, Timestamp from, Timestamp till) {
+        StructType schema = indexRows.schema();
+        // Check if each column exists before selecting it
+        boolean hasTimestampA = Arrays.asList(schema.fieldNames()).contains("timestampA");
+        boolean hasTimestampB = Arrays.asList(schema.fieldNames()).contains("timestampB");
+        boolean hasPositionA = Arrays.asList(schema.fieldNames()).contains("positionA");
+        boolean hasPositionB = Arrays.asList(schema.fieldNames()).contains("positionB");
+
+        Column traceId = functions.col("trace_id");
+        Column eventA = functions.col("eventA");
+        Column eventB = functions.col("eventB");
+
+        //here is the filtering for the till and from if the indexing has been done using timestamp
+        if (hasTimestampA && hasTimestampB) {
+            indexRows = indexRows
+                    .withColumn("timestampA", functions.to_timestamp(functions.col("timestampA"), "yyyy-MM-dd HH:mm:ss"))
+                    .withColumn("timestampB", functions.to_timestamp(functions.col("timestampB"), "yyyy-MM-dd HH:mm:ss"));
+
+            if (from != null) {
+                indexRows = indexRows.filter(functions.col("timestampA").isNull()
+                        .or(functions.col("timestampA").geq(from)));
+            }
+            if (till != null) {
+                indexRows = indexRows.filter(functions.col("timestampB").isNull()
+                        .or(functions.col("timestampB").leq(till)));
+            }
+        }
+        Column timestampA = hasTimestampA ? functions.col("timestampA") : functions.lit(null).cast("string");
+        Column timestampB = hasTimestampB ? functions.col("timestampB") : functions.lit(null).cast("string");
+        Column positionA = hasPositionA ? functions.col("positionA") : functions.lit(null).cast("int");
+        Column positionB = hasPositionB ? functions.col("positionB") : functions.lit(null).cast("int");
+
+        Dataset<IndexPair> indexPairDataset = indexRows.select(traceId, eventA, eventB, timestampA.alias("timestampA"),
+                        timestampB.alias("timestampB"), positionA.alias("positionA"),
+                        positionB.alias("positionB"))
+                .as(Encoders.bean(IndexPair.class));
+        return indexPairDataset;
+    }
+
+    private Dataset<EventModel> getEventsFromIndexRecords(Dataset<IndexPair> indexPairs) {
+        Dataset<Row> eventA_DF = indexPairs
+                .selectExpr(
+                        "eventA as eventName",
+                        "timestampA as timestamp",
+                        "positionA as position",
+                        "trace_id as traceId"
+                );
+        Dataset<Row> eventB_DF = indexPairs
+                .selectExpr(
+                        "eventB as eventName",
+                        "timestampB as timestamp",
+                        "positionB as position",
+                        "trace_id as traceId"
+                );
+        Dataset<EventModel> eventsDF = eventA_DF.union(eventB_DF)
+                .distinct()
+                .as(Encoders.bean(EventModel.class));
+        return eventsDF;
+    }
     //Below are for Declare//
-
-
 
 
 }
