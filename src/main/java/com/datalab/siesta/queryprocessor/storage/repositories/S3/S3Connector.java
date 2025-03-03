@@ -15,8 +15,8 @@ import com.datalab.siesta.queryprocessor.model.DBModel.*;
 import com.datalab.siesta.queryprocessor.model.Events.EventBoth;
 import com.datalab.siesta.queryprocessor.model.Events.EventPair;
 import com.datalab.siesta.queryprocessor.model.Utils.Utils;
+import com.datalab.siesta.queryprocessor.storage.model.EventModel;
 import com.datalab.siesta.queryprocessor.storage.repositories.SparkDatabaseRepository;
-import org.apache.commons.collections4.IteratorUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
@@ -24,13 +24,11 @@ import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Service;
 import scala.Tuple2;
@@ -196,18 +194,6 @@ public class S3Connector extends SparkDatabaseRepository {
         Broadcast<Set<String>> bEventTypes = javaSparkContext.broadcast(eventTypes);
         //TODO: implement this when needed
         return null;
-//        return sparkSession.read()
-//                .parquet(path)
-//                .toJavaRDD()
-//                .filter((Function<Row, Boolean>) x -> bEventTypes.value().contains((String)x.getAs("event_type")))
-//                .filter((Function<Row, Boolean>) x -> bTraceIds.value().contains((String)x.getAs("trace_id")))
-//                .map((Function<Row, EventBoth>) row->{
-//                    String trace_id = row.getAs("trace_id");
-//                    String event_type = row.getAs("event_type");
-//                    String ts = row.getAs("timestamp");
-//                    Integer position = row.getAs("position");
-//                    return new EventBoth(event_type,trace_id,Timestamp.valueOf(ts),position);
-//                });
     }
 
     @Override
@@ -223,6 +209,22 @@ public class S3Connector extends SparkDatabaseRepository {
                 .as(Encoders.bean(EventModel.class));
         return eventsDF;
     }
+
+    @Override
+    protected Dataset<EventModel> readSingleTable(String logname){
+        String path = String.format("%s%s%s", bucket, logname, "/single.parquet/");
+        Dataset<EventModel> eventsDF = sparkSession.read().parquet(path)
+                .selectExpr(
+                        "trace_id as traceId",
+                        "event_type as eventName",
+                        "CAST(timestamp AS STRING) as timestamp",  // Ensure timestamp is correctly formatted
+                        "position"
+                )
+                .as(Encoders.bean(EventModel.class));
+        return eventsDF;
+    }
+
+
 
     @Override
     protected Dataset<IndexPair> getAllEventPairs(Set<EventPair> pairs, String logname,Metadata metadata,Timestamp from,

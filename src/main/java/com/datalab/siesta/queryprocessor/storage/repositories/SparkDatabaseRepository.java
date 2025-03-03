@@ -5,22 +5,22 @@ import com.datalab.siesta.queryprocessor.model.Events.*;
 import com.datalab.siesta.queryprocessor.model.ExtractedPairsForPatternDetection;
 import com.datalab.siesta.queryprocessor.model.Utils.Utils;
 import com.datalab.siesta.queryprocessor.storage.DatabaseRepository;
+import com.datalab.siesta.queryprocessor.storage.model.EventModel;
+import com.datalab.siesta.queryprocessor.storage.model.GroupEvents;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.*;
+import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.storage.StorageLevel;
 import org.springframework.beans.factory.annotation.Autowired;
 import scala.Tuple2;
-import scala.Tuple3;
 
 import java.sql.Timestamp;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -42,6 +42,29 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         this.javaSparkContext = javaSparkContext;
         this.utils = utils;
     }
+
+    /**
+     * Return all events in the SequenceTable as a dataset in order to be filtered latter
+     * needs to be implemented by each different connector
+     *
+     * @param logname the log database
+     * @return all events in the SequenceTable
+     */
+    protected Dataset<EventModel> readSequenceTable(String logname) {
+        return null;
+    }
+
+    /**
+     * Return all events in the SequenceTable as a dataset in order to be filtered latter
+     * needs to be implemented by each different connector
+     *
+     * @param logname the log database
+     * @return all events in the SequenceTable
+     */
+    protected Dataset<EventModel> readSingleTable(String logname) {
+        return null;
+    }
+
 
     /**
      * return all the IndexPairs grouped by the eventA and eventB
@@ -68,15 +91,6 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         return null;
     }
 
-    /**
-     * Return all events in the SequenceTable as a dataset in order to be filtered latter
-     * needs to be implemented by each different connector
-     * @param logname  the log database
-     * @return  all events in the SequenceTable
-     */
-    protected Dataset<EventModel> readSequenceTable(String logname){
-        return null;
-    }
 
     /**
      * Retrieves the appropriate events from the SequenceTable, which contains the original traces
@@ -114,25 +128,25 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         //filter based on the timestamps and the parameters from and till
         Dataset<Row> filteredTimestamps = eventsDF
                 .withColumn("timestamp-true", functions.col("timestamp").cast("timestamp"));
-        if(from !=null){
+        if (from != null) {
             filteredTimestamps = filteredTimestamps.filter(functions.col("timestamp-true").geq(from));
         }
-        if(till!=null){
+        if (till != null) {
             filteredTimestamps = filteredTimestamps.filter(functions.col("timestamp-true").leq(till));
         }
 
         return this.transformEventModelToMap(filteredTimestamps);
     }
 
-    private Map<String,List<EventBoth>> transformEventModelToMap(Dataset<Row> events){
+    private Map<String, List<EventBoth>> transformEventModelToMap(Dataset<Row> events) {
         List<EventModel> eventsList = events
-                .select("traceId","eventName","timestamp","position")
+                .select("traceId", "eventName", "timestamp", "position")
                 .as(Encoders.bean(EventModel.class))
                 .collectAsList();
 
         Map<String, List<EventBoth>> response = eventsList.parallelStream()
-                .map(x->
-                        new EventBoth(x.getEventName(),x.getTraceId(),Timestamp.valueOf(x.getTimestamp()),x.getPosition()))
+                .map(x ->
+                        new EventBoth(x.getEventName(), x.getTraceId(), Timestamp.valueOf(x.getTimestamp()), x.getPosition()))
                 .collect(Collectors.groupingByConcurrent(EventBoth::getTraceID));
         return response;
     }
@@ -178,7 +192,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         return this.transformToIndexRecords(results);
     }
 
-    public IndexRecords transformToIndexRecords(Dataset<IndexPair> indexPairs) {
+    private IndexRecords transformToIndexRecords(Dataset<IndexPair> indexPairs) {
         Dataset<Row> groupedDf = indexPairs.withColumn("indexPair",
                         functions.struct("trace_id", "eventA", "eventB", "timestampA",
                                 "timestampB", "positionA", "positionB"))
@@ -364,6 +378,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
 
     @Override
     public Map<String, List<EventBoth>> querySingleTable(String logname, Set<String> eventTypes) {
+        //TODO: fix this or remove it
         JavaRDD<EventBoth> events = queryFromSingle(logname, eventTypes);
         JavaPairRDD<String, Iterable<EventBoth>> pairs = events.groupBy((Function<EventBoth, String>) Event::getName);
         return pairs.mapValues((Function<Iterable<EventBoth>, List<EventBoth>>) e -> {
@@ -385,9 +400,14 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
      */
     @Override
     public List<EventBoth> querySingleTable(String logname, Set<String> traceIds, Set<String> eventTypes) {
-        //TODO: implement this when needed
-        return null;
-//        return this.getFromSingle(logname, traceIds, eventTypes).collect();
+        Dataset<EventModel> data = this.readSingleTable(logname)
+                .filter(functions.col("eventName").isin(eventTypes.toArray()))//filter based on type
+                .filter(functions.col("traceId").isin(traceIds.toArray()));//filter based on trace
+        List<EventBoth> response = data.collectAsList()
+                .parallelStream().map(x -> new EventBoth(x.getEventName(),
+                        x.getTraceId(), Timestamp.valueOf(x.getTimestamp()), x.getPosition()))
+                .toList();
+        return response;
     }
 
     /**
@@ -400,37 +420,60 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
      * imestamps)
      */
     @Override
-    public Map<Integer, List<EventBoth>> querySingleTableGroups(String logname, List<Set<String>> groups, Set<String> eventTypes) {
-        //TODO: implement this when needed
-        return null;
-//        Set<String> allTraces = groups.stream()
-//                .flatMap((java.util.function.Function<Set<String>, Stream<String>>) Collection::stream)
-//                .collect(Collectors.toSet());
-//        Broadcast<List<Set<String>>> bgroups = javaSparkContext.broadcast(groups);
-//        Broadcast<Integer> bEventTypesSize = javaSparkContext.broadcast(eventTypes.size());
-//        JavaRDD<EventBoth> eventRDD = this.getFromSingle(logname, allTraces, eventTypes);
-//        Map<Integer, List<EventBoth>> response = eventRDD.map((Function<EventBoth, Tuple2<Integer, EventBoth>>) event -> {
-//                    for (int g = 0; g < bgroups.value().size(); g++) {
-//                        if (bgroups.value().get(g).contains(event.getTraceID())) return new Tuple2<>(g + 1, event);
-//                    }
-//                    return new Tuple2<>(-1, event);
-//                })
-//                .filter((Function<Tuple2<Integer, EventBoth>, Boolean>) event -> event._1 != -1)
-//                .groupBy((Function<Tuple2<Integer, EventBoth>, Integer>) event -> event._1)
-//                //maintain only these groups that contain all the event types in the query
-//                .filter((Function<Tuple2<Integer, Iterable<Tuple2<Integer, EventBoth>>>, Boolean>) group -> {
-//                    Set<String> events = new HashSet<>();
-//                    group._2.forEach(x -> events.add(x._2.getName()));
-//                    return events.size() == bEventTypesSize.value();
-//                })
-//                .mapValues((Function<Iterable<Tuple2<Integer, EventBoth>>, List<EventBoth>>) group -> {
-//                    List<EventBoth> eventBoth = new ArrayList<>();
-//                    for (Tuple2<Integer, EventBoth> e : group) {
-//                        eventBoth.add(e._2);
-//                    }
-//                    return eventBoth.stream().sorted().collect(Collectors.toList());
-//                }).collectAsMap();
-//        return response;
+    public Map<Integer, List<EventBoth>> querySingleTableGroups(String logname, List<Set<String>> groups,
+                                                                Set<String> eventTypes) {
+        // extract all traces that appear in groups
+        Set<String> allTraces = groups.stream()
+                .flatMap((java.util.function.Function<Set<String>, Stream<String>>) Collection::stream)
+                .collect(Collectors.toSet());
+        //create dataframe with groups
+        List<Row> groupRows = new ArrayList<>();
+        for (int i = 0; i < groups.size(); i++) {
+            groupRows.add(RowFactory.create(i + 1, new ArrayList<>(groups.get(i)))); // (group index, traceIds)
+        }
+        Dataset<Row> groupDF = sparkSession.createDataFrame(groupRows, new StructType()
+                .add("group_id", DataTypes.IntegerType)
+                .add("traceIds", DataTypes.createArrayType(DataTypes.StringType)));
+
+
+        //extract events from the single table
+        Dataset<EventModel> data = this.readSingleTable(logname)
+                .filter(functions.col("eventName").isin(eventTypes.toArray()))//filter based on type
+                .filter(functions.col("traceId").isin(allTraces.toArray()));//filter based on trace
+        // Assign group IDs to events
+        Dataset<Row> eventsWithGroup = data.crossJoin(groupDF)
+                .filter(functions.array_contains(functions.col("traceIds"), functions.col("traceId")))
+                .select("group_id", "traceId", "eventName", "position", "timestamp"); // Keep relevant fields
+
+
+        // Group by group_id and collect event details
+        Dataset<Row> groupedEvents = eventsWithGroup.groupBy("group_id")
+                .agg(functions.collect_list(functions.struct("eventName", "traceId", "position", "timestamp"))
+                        .alias("events"));
+        // Maintains only the groups that contain all the required event types
+        Dataset<Row> validGroups = groupedEvents
+                .withColumn("eventTypes", functions.expr("transform(events, x -> x.eventName)")) // Extract event names
+                .filter(functions.size(functions.array_distinct(functions.col("eventTypes"))).equalTo(eventTypes.size()));
+
+        //Extract from the dataframe the response that follows the format Map<group_id,List of events>
+        List<GroupEvents> eventsList = validGroups
+                .as(Encoders.bean(GroupEvents.class))
+                .collectAsList();
+        Map<Integer, List<EventBoth>> response = eventsList.parallelStream()
+                .collect(Collectors.toMap(
+                        GroupEvents::getGroup_id,
+                        group -> group.getEvents().stream()
+                                .map(event -> new EventBoth(
+                                        event.getEventName(),
+                                        event.getTraceId(),
+                                        Timestamp.valueOf(event.getTimestamp()),
+                                        event.getPosition()
+                                ))
+                                .sorted()
+                                .collect(Collectors.toList())
+                ));
+
+        return response;
     }
 
     /**
