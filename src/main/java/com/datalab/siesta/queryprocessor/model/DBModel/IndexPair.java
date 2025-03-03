@@ -3,6 +3,7 @@ package com.datalab.siesta.queryprocessor.model.DBModel;
 import com.datalab.siesta.queryprocessor.model.Events.Event;
 import com.datalab.siesta.queryprocessor.model.Events.EventPair;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -25,8 +26,8 @@ import java.util.Set;
  */
 @Getter
 @Setter
+@AllArgsConstructor
 public class IndexPair implements Serializable {
-
     private String trace_id;
     private String eventA;
     private String eventB;
@@ -53,16 +54,6 @@ public class IndexPair implements Serializable {
         this.timestampA = timestampA;
         this.timestampB = timestampB;
     }
-//
-//    public IndexPair(String traceId, String eventA, String eventB, String timestampA, String timestampB) {
-//        this.trace_id = traceId;
-//        this.positionA = -1;
-//        this.positionB = -1;
-//        this.eventA = eventA;
-//        this.eventB = eventB;
-//        this.timestampA = Timestamp.valueOf(timestampA);
-//        this.timestampB = Timestamp.valueOf(timestampB);
-//    }
 
     public IndexPair(String traceId, String eventA, String eventB, int positionA, int positionB) {
         this.trace_id = traceId;
@@ -74,11 +65,6 @@ public class IndexPair implements Serializable {
         this.positionB = positionB;
     }
 
-//    @JsonIgnore
-//    public List<Event> getEvents(){
-//
-//        return e;
-//    }
 
     @JsonIgnore
     public boolean validate(Set<EventPair> pairs){

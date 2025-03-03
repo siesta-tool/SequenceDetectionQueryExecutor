@@ -19,6 +19,7 @@ import com.datalab.siesta.queryprocessor.storage.DatabaseRepository;
 
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.sql.Dataset;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import scala.Tuple2;
@@ -37,7 +38,7 @@ public class DeclareDBConnector {
         this.db=databaseRepository;
     }
 
-    public JavaRDD<Trace> querySequenceTableDeclare(String logName){
+    public Dataset<Trace> querySequenceTableDeclare(String logName){
         return db.querySequenceTableDeclare(logName);
     }
 

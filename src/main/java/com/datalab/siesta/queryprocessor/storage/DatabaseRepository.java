@@ -18,6 +18,7 @@ import com.datalab.siesta.queryprocessor.model.Events.EventPos;
 import com.datalab.siesta.queryprocessor.model.ExtractedPairsForPatternDetection;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.sql.Dataset;
 import scala.Tuple2;
 import scala.Tuple3;
 
@@ -160,7 +161,7 @@ public interface DatabaseRepository {
 
 
     // Below are for Declare //
-    JavaRDD<Trace> querySequenceTableDeclare(String logname);
+    Dataset<Trace> querySequenceTableDeclare(String logname);
 
     JavaRDD<UniqueTracesPerEventType> querySingleTableDeclare(String logname);
 

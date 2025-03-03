@@ -6,6 +6,7 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
+import org.apache.spark.sql.Dataset;
 import org.apache.spark.storage.StorageLevel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -56,9 +57,12 @@ public class QueryPlanPositions implements QueryPlan{
         Broadcast<Double> bSupport = this.javaSparkContext.broadcast(qpw.getSupport());
         Broadcast<Long> bTraces = this.javaSparkContext.broadcast(totalTraces);
         //get all sequences from the sequence table
-        JavaRDD<Trace> traces = declareDBConnector.querySequenceTableDeclare(this.metadata.getLogname());
+        Dataset<Trace> traces2 = declareDBConnector.querySequenceTableDeclare(this.metadata.getLogname());
+        //TODO:implement this when neededs
+        JavaRDD<Trace> traces = traces2.toJavaRDD();
         
-        JavaRDD<Tuple2<String, String>> events = traces.map(x -> new Tuple2<>(x.getEvents().get(0).getName(), x.getEvents().get(x.getEvents().size() - 1).getName()));
+        JavaRDD<Tuple2<String, String>> events = traces.map(x -> new Tuple2<>(x.getEvents().get(0).getEventName(),
+                x.getEvents().get(x.getEvents().size() - 1).getEventName()));
         events.persist(StorageLevel.MEMORY_AND_DISK());
         List<Tuple2<String, Double>> firsts = filterThem(events.map(x -> new Tuple2<>(x._1, 1)),
                 bSupport,bTraces);

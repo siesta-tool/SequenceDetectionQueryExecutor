@@ -11,10 +11,7 @@ import com.datalab.siesta.queryprocessor.declare.model.declareState.OrderState;
 import com.datalab.siesta.queryprocessor.declare.model.declareState.PositionState;
 import com.datalab.siesta.queryprocessor.declare.model.declareState.UnorderStateI;
 import com.datalab.siesta.queryprocessor.declare.model.declareState.UnorderStateU;
-import com.datalab.siesta.queryprocessor.model.DBModel.Count;
-import com.datalab.siesta.queryprocessor.model.DBModel.IndexPair;
-import com.datalab.siesta.queryprocessor.model.DBModel.Metadata;
-import com.datalab.siesta.queryprocessor.model.DBModel.Trace;
+import com.datalab.siesta.queryprocessor.model.DBModel.*;
 import com.datalab.siesta.queryprocessor.model.Events.EventBoth;
 import com.datalab.siesta.queryprocessor.model.Events.EventPair;
 import com.datalab.siesta.queryprocessor.model.Utils.Utils;
@@ -183,31 +180,49 @@ public class S3Connector extends SparkDatabaseRepository {
 
 
     @Override
-    protected JavaRDD<Trace> querySequenceTablePrivate(String logname, Broadcast<Set<String>> bTraceIds) {
-        return querySequenceTableDeclare(logname)
-                .filter((Function<Trace, Boolean>) trace -> bTraceIds.getValue().contains(trace.getTraceID()));
+    protected Dataset<Trace> querySequenceTablePrivate(String logname, Broadcast<Set<String>> bTraceIds) {
+        Dataset<Trace> traces = this.querySequenceTableDeclare(logname);
+        Dataset<Trace> filtered = traces.filter(functions.col("traceID").isin(bTraceIds.value().toArray()));
+        return filtered;
     }
 
 
     @Override
-    protected JavaRDD<EventBoth> getFromSingle(String logname, Set<String> traceIds, Set<String> eventTypes) {
+    protected Dataset<EventBoth> getFromSingle(String logname, Set<String> traceIds, Set<String> eventTypes) {
         String path = String.format("%s%s%s", bucket, logname, "/single.parquet/");
+
+
         Broadcast<Set<String>> bTraceIds = javaSparkContext.broadcast(traceIds);
         Broadcast<Set<String>> bEventTypes = javaSparkContext.broadcast(eventTypes);
-        return sparkSession.read()
-                .parquet(path)
-                .toJavaRDD()
-                .filter((Function<Row, Boolean>) x -> bEventTypes.value().contains((String)x.getAs("event_type")))
-                .filter((Function<Row, Boolean>) x -> bTraceIds.value().contains((String)x.getAs("trace_id")))
-                .map((Function<Row, EventBoth>) row->{
-                    String trace_id = row.getAs("trace_id");
-                    String event_type = row.getAs("event_type");
-                    String ts = row.getAs("timestamp");
-                    Integer position = row.getAs("position");
-                    return new EventBoth(event_type,trace_id,Timestamp.valueOf(ts),position);
-                });
+        //TODO: implement this when needed
+        return null;
+//        return sparkSession.read()
+//                .parquet(path)
+//                .toJavaRDD()
+//                .filter((Function<Row, Boolean>) x -> bEventTypes.value().contains((String)x.getAs("event_type")))
+//                .filter((Function<Row, Boolean>) x -> bTraceIds.value().contains((String)x.getAs("trace_id")))
+//                .map((Function<Row, EventBoth>) row->{
+//                    String trace_id = row.getAs("trace_id");
+//                    String event_type = row.getAs("event_type");
+//                    String ts = row.getAs("timestamp");
+//                    Integer position = row.getAs("position");
+//                    return new EventBoth(event_type,trace_id,Timestamp.valueOf(ts),position);
+//                });
     }
 
+    @Override
+    protected Dataset<EventModel> readSequenceTable(String logname){
+        String path = String.format("%s%s%s", bucket, logname, "/seq.parquet/");
+        Dataset<EventModel> eventsDF = sparkSession.read().parquet(path)
+                .selectExpr(
+                        "trace_id as traceId",
+                        "event_type as eventName",
+                        "CAST(timestamp AS STRING) as timestamp",  // Ensure timestamp is correctly formatted
+                        "position"
+                )
+                .as(Encoders.bean(EventModel.class));
+        return eventsDF;
+    }
 
     @Override
     protected Dataset<IndexPair> getAllEventPairs(Set<EventPair> pairs, String logname,Metadata metadata,Timestamp from,
@@ -229,22 +244,15 @@ public class S3Connector extends SparkDatabaseRepository {
     //Below are for declare//
 
     @Override
-    public JavaRDD<Trace> querySequenceTableDeclare(String logname) {
-        String path = String.format("%s%s%s", bucket, logname, "/seq.parquet/");
-        return sparkSession.read()
-                .parquet(path)
-                .toJavaRDD()
-                .map((Function<Row, EventBoth>) row -> {
-                    String trace_id = row.getAs("trace_id");
-                    String event_name = row.getAs("event_type");
-                    Timestamp ts = Timestamp.valueOf((String) row.getAs("timestamp"));
-                    Integer pos = row.getAs("position");
-                    return new EventBoth(event_name, trace_id, ts, pos);
-                })
-                .groupBy((Function<EventBoth, String>) EventBoth::getTraceID)
-                .map((Function<Tuple2<String, Iterable<EventBoth>>, Trace>) t ->
-                        new Trace(t._1(), IteratorUtils.toList(t._2().iterator()))
-                );
+    public Dataset<Trace> querySequenceTableDeclare(String logname) {
+        Dataset<EventModel> eventDF = this.readSequenceTable(logname);
+        Dataset<Trace> groupedDF = eventDF
+            .groupBy("traceId")// Group by trace_id and collect events into a list
+            .agg(functions.collect_list(functions
+                            .struct("eventName", "traceID", "timestamp", "position"))
+                    .alias("events"))
+                .as(Encoders.bean(Trace.class));
+        return groupedDF;
     }
 
     @Override
