@@ -1,15 +1,13 @@
 package com.datalab.siesta.queryprocessor.storage.repositories;
 
-import com.datalab.siesta.queryprocessor.declare.model.EventSupport;
-import com.datalab.siesta.queryprocessor.declare.model.OccurrencesPerTrace;
-import com.datalab.siesta.queryprocessor.declare.model.UniqueTracesPerEventPair;
-import com.datalab.siesta.queryprocessor.declare.model.UniqueTracesPerEventType;
+import com.datalab.siesta.queryprocessor.declare.model.*;
 import com.datalab.siesta.queryprocessor.model.DBModel.*;
 import com.datalab.siesta.queryprocessor.model.Events.*;
 import com.datalab.siesta.queryprocessor.model.ExtractedPairsForPatternDetection;
 import com.datalab.siesta.queryprocessor.model.Utils.Utils;
 import com.datalab.siesta.queryprocessor.storage.DatabaseRepository;
 import com.datalab.siesta.queryprocessor.storage.model.EventModel;
+import com.datalab.siesta.queryprocessor.storage.model.EventTypeTracePositions;
 import com.datalab.siesta.queryprocessor.storage.model.GroupEvents;
 import com.datalab.siesta.queryprocessor.storage.model.Trace;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -99,12 +97,12 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
      */
     protected Dataset<IndexPair> getAllEventPairs(Set<EventPair> pairs,
                                                   String logname, Metadata metadata, Timestamp from, Timestamp till) {
-        String filter = pairs.stream().map(x->new Tuple2<>(x.getEventA().getName(),x.getEventB().getName()))
+        String filter = pairs.stream().map(x -> new Tuple2<>(x.getEventA().getName(), x.getEventB().getName()))
                 .collect(Collectors.toSet())
-                .stream().map(x->String.format("(eventA = '%s' and eventB = '%s')",x._1(),x._2()))
+                .stream().map(x -> String.format("(eventA = '%s' and eventB = '%s')", x._1(), x._2()))
                 .collect(Collectors.joining(" or "));
         Dataset<IndexPair> indexDataset = readIndexTable(logname)
-                        .where(filter); //filter based on events
+                .where(filter); //filter based on events
 
         if (!metadata.getMode().equals("position")) { // we can filter based on the timestamp also
             Dataset<Row> indexRows = indexDataset
@@ -119,13 +117,12 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
                 indexRows = indexRows.filter(functions.col("timestampB-2").isNull()
                         .or(functions.col("timestampB-2").leq(till)));
             }
-            indexDataset=indexRows.select("trace_id","eventA","eventB","timestampA","timestampB","positionA","positionB")
+            indexDataset = indexRows.select("trace_id", "eventA", "eventB", "timestampA", "timestampB", "positionA", "positionB")
                     .as(Encoders.bean(IndexPair.class));
         }
 
         return indexDataset;
     }
-
 
 
     /**
@@ -177,6 +174,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
     /**
      * Utility class that is used from querySequenceTable methods to transform the Dataset of
      * EventModel to Map<traceId, List<EventBoth>>
+     *
      * @param events a dataset of augmented EventModel (can include more than the standard fields of EventModel)
      * @return a Map of the traceIds to the corresponding events
      */
@@ -212,6 +210,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
     /**
      * Transform the Dataset of IndexPair (which is a utility class in storage package) to IndexRecords
      * which are objects handled by the remaining program
+     *
      * @param indexPairs records from the IndexTable
      * @return an IndexRecords object
      */
@@ -381,7 +380,8 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
 
     /**
      * Extract events from the SingleTable and groups them based on the traceID
-     * @param logname the log database
+     *
+     * @param logname    the log database
      * @param eventTypes the events that will we retrieved
      * @return
      */
@@ -389,19 +389,19 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
     public Map<String, List<EventBoth>> querySingleTable(String logname, Set<String> eventTypes) {
         Dataset<Trace> events = this.readSingleTable(logname)
                 .filter(functions.col("eventName").isin(eventTypes.toArray()))
-                .withColumn("event",functions.struct("traceId","eventName","timestamp","position"))
+                .withColumn("event", functions.struct("traceId", "eventName", "timestamp", "position"))
                 .groupBy("traceId")
                 .agg(functions.collect_list("event").alias("events"))
                 .as(Encoders.bean(Trace.class));
 
-        Map<String,List<EventBoth>> response = events.collectAsList().stream()
+        Map<String, List<EventBoth>> response = events.collectAsList().stream()
                 .collect(Collectors.toMap(
-                        Trace::getTraceId,
-                trace-> trace.getEvents().stream().map(event-> new EventBoth(
-                        event.getEventName(),
-                        event.getTraceId(),
-                        Timestamp.valueOf(event.getTimestamp()),
-                        event.getPosition())).collect(Collectors.toList())
+                                Trace::getTraceId,
+                                trace -> trace.getEvents().stream().map(event -> new EventBoth(
+                                        event.getEventName(),
+                                        event.getTraceId(),
+                                        Timestamp.valueOf(event.getTimestamp()),
+                                        event.getPosition())).collect(Collectors.toList())
                         )
                 );
         return response;
@@ -523,8 +523,9 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
     /**
      * Retrieves the corresponding stats (min, max duration and so on) from the CountTable, for a given set of event
      * pairs
+     *
      * @param logname the log database
-     * @param pairs a set with the event pairs
+     * @param pairs   a set with the event pairs
      * @return a list of the stats for the set of event pairs
      */
     @Override
@@ -532,16 +533,16 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         String firstFilter = pairs.stream().map(x -> x.getEventA().getName()).collect(Collectors.toSet())
                 .stream().map(x -> String.format("eventA = '%s'", x))
                 .collect(Collectors.joining(" or "));
-        String secondFilter = pairs.stream().map(x->new Tuple2<>(x.getEventA().getName(),x.getEventB().getName()))
+        String secondFilter = pairs.stream().map(x -> new Tuple2<>(x.getEventA().getName(), x.getEventB().getName()))
                 .collect(Collectors.toSet())
-                .stream().map(x->String.format("(eventA = '%s' and eventB = '%s')",x._1(),x._2()))
+                .stream().map(x -> String.format("(eventA = '%s' and eventB = '%s')", x._1(), x._2()))
                 .collect(Collectors.joining(" or "));
         Dataset<Count> counts = readCountTable(logname);
         //Spark should be able to run this query efficiently and push the first filter before explosion
         List<Count> countList = counts
-                    .filter(firstFilter) //filter only based on the first event
-                    .filter(secondFilter) //filter based on the et-pair
-                    .collectAsList();
+                .filter(firstFilter) //filter only based on the first event
+                .filter(secondFilter) //filter based on the et-pair
+                .collectAsList();
         return countList;
     }
 
@@ -600,6 +601,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
 
     /**
      * Extract all events that appear in IndexTable records. Essentially, split event pairs into two
+     *
      * @param indexPairs records from IndexTable in the form of a Dataset
      * @return a dataset of the unique events (i.e, uses distinct since one event might appear in multiple pairs)
      */
@@ -625,7 +627,6 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
     }
 
 
-
     //Below are for Declare//
     @Override
     public Dataset<Trace> querySequenceTableDeclare(String logname) {
@@ -643,11 +644,11 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
     public Dataset<UniqueTracesPerEventType> querySingleTableDeclare(String logname) {
         Dataset<EventModel> eventDF = this.readSingleTable(logname);
         Dataset<UniqueTracesPerEventType> uniqueTracesPerEventTypeDataset = eventDF
-                .selectExpr("eventName","traceId")
-                .groupBy("eventName","traceId")
+                .selectExpr("eventName", "traceId")
+                .groupBy("eventName", "traceId")
                 .agg(functions.count("*").alias("occs"))
                 .withColumn("occs", functions.col("occs").cast("int"))
-                .withColumn("occurrence",functions.struct("traceId","occs"))
+                .withColumn("occurrence", functions.struct("traceId", "occs"))
                 .groupBy("eventName")
                 .agg(functions.collect_list("occurrence").alias("occurrences"))
                 .as(Encoders.bean(UniqueTracesPerEventType.class));
@@ -655,9 +656,9 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
     }
 
     @Override
-    public Dataset<EventSupport> querySingleTable(String logname){
+    public Dataset<EventSupport> querySingleTable(String logname) {
         Dataset<EventModel> eventDF = this.readSingleTable(logname);
-        Dataset<EventSupport> supportDF = eventDF.select("eventName","traceId")
+        Dataset<EventSupport> supportDF = eventDF.select("eventName", "traceId")
                 .groupBy("eventName")
                 .agg(functions.count("traceId")).alias("support")
                 .selectExpr("event_type as event, support")
@@ -670,13 +671,34 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         Dataset<IndexPair> indexRecords = readIndexTable(logname);
 
         Dataset<UniqueTracesPerEventPair> uniqueTracesPerEventPairDataset = indexRecords
-                .select("eventA","eventB","trace_id")
+                .select("eventA", "eventB", "trace_id")
                 .distinct()
-                .groupBy("eventA","eventB")
+                .groupBy("eventA", "eventB")
                 .agg(functions.collect_list("trace_id").alias("uniqueTraces"))
                 .as(Encoders.bean(UniqueTracesPerEventPair.class));
 
         return uniqueTracesPerEventPairDataset;
+    }
+
+    @Override
+    public Dataset<EventPairToTrace> queryIndexOriginalDeclare(String logname) {
+        Dataset<IndexPair> indexPairDataset = readIndexTable(logname);
+        Dataset<EventPairToTrace> response = indexPairDataset
+                .select("eventA", "eventB", "trace_id")
+                .distinct()
+                .as(Encoders.bean(EventPairToTrace.class));
+        return response;
+    }
+
+    @Override
+    public Dataset<EventTypeTracePositions> querySingleTableAllDeclare(String logname) {
+        Dataset<EventModel> eventDF = this.readSingleTable(logname);
+        Dataset<EventTypeTracePositions> response = eventDF
+                .select("eventName","traceId","position")
+                .groupBy("eventName","traceId")
+                .agg(functions.collect_list("position").alias("positions"))
+                .as(Encoders.bean(EventTypeTracePositions.class));
+        return response;
     }
 
 }

@@ -1,10 +1,6 @@
 package com.datalab.siesta.queryprocessor.declare;
 
-import com.datalab.siesta.queryprocessor.declare.model.EventPairToTrace;
-import com.datalab.siesta.queryprocessor.declare.model.EventSupport;
-import com.datalab.siesta.queryprocessor.declare.model.OccurrencesPerTrace;
-import com.datalab.siesta.queryprocessor.declare.model.UniqueTracesPerEventPair;
-import com.datalab.siesta.queryprocessor.declare.model.UniqueTracesPerEventType;
+import com.datalab.siesta.queryprocessor.declare.model.*;
 import com.datalab.siesta.queryprocessor.declare.model.declareState.ExistenceState;
 import com.datalab.siesta.queryprocessor.declare.model.declareState.NegativeState;
 import com.datalab.siesta.queryprocessor.declare.model.declareState.OrderState;
@@ -12,18 +8,17 @@ import com.datalab.siesta.queryprocessor.declare.model.declareState.PositionStat
 import com.datalab.siesta.queryprocessor.declare.model.declareState.UnorderStateI;
 import com.datalab.siesta.queryprocessor.declare.model.declareState.UnorderStateU;
 import com.datalab.siesta.queryprocessor.model.DBModel.IndexPair;
+import com.datalab.siesta.queryprocessor.storage.model.EventTypeTracePositions;
 import com.datalab.siesta.queryprocessor.storage.model.Trace;
 import com.datalab.siesta.queryprocessor.storage.DatabaseRepository;
 
-import org.apache.spark.api.java.JavaPairRDD;
+
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Encoders;
+import org.apache.spark.sql.functions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import scala.Tuple2;
-
-import java.util.List;
-import java.util.Map;
 
 @Service
 public class DeclareDBConnector {
@@ -56,23 +51,23 @@ public class DeclareDBConnector {
         return this.db.queryIndexTableAllDeclare(logname);
     }
 
-    public JavaPairRDD<Tuple2<String,String>, List<Integer>> querySingleTableAllDeclare(String logname){
+    public Dataset<EventTypeTracePositions> querySingleTableAllDeclare(String logname){
         return this.db.querySingleTableAllDeclare(logname);
     }
 
 
-    public JavaRDD<EventPairToTrace> queryIndexOriginalDeclare(String logname){
+    public Dataset<EventPairToTrace> queryIndexOriginalDeclare(String logname){
         return this.db.queryIndexOriginalDeclare(logname);
     }
 
-    public Map<String,Long> extractTotalOccurrencesPerEventType(String logname){
-        //TODO: fix this
-        return null;
-//        return this.querySingleTableDeclare(logname)
-//                .map(x -> {
-//                    long all = x.getOccurrences().stream().mapToLong(OccurrencesPerTrace::getOccurrences).sum();
-//                    return new Tuple2<>(x.getEventType(), all);
-//                }).keyBy(x -> x._1).mapValues(x -> x._2).collectAsMap();
+    public Dataset<EventTypeOccurrences> extractTotalOccurrencesPerEventType(String logname){
+        Dataset<EventTypeOccurrences> eventTypeOccurrencesDataset=  this.querySingleTableDeclare(logname)
+                .withColumn("numberOfTraces", functions.expr(
+                        "aggregate(occurrences, 0, (acc, a) -> acc + a.occs)"
+                ))
+                .selectExpr("eventName", "numberOfTraces")
+                .as(Encoders.bean(EventTypeOccurrences.class));
+        return eventTypeOccurrencesDataset;
     }
 
     public JavaRDD<PositionState> queryPositionState(String logname){

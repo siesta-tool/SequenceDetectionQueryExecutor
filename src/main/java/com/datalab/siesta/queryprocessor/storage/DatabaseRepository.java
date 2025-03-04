@@ -14,8 +14,8 @@ import com.datalab.siesta.queryprocessor.model.DBModel.*;
 import com.datalab.siesta.queryprocessor.model.Events.EventBoth;
 import com.datalab.siesta.queryprocessor.model.Events.EventPair;
 import com.datalab.siesta.queryprocessor.model.ExtractedPairsForPatternDetection;
+import com.datalab.siesta.queryprocessor.storage.model.EventTypeTracePositions;
 import com.datalab.siesta.queryprocessor.storage.model.Trace;
-import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.Dataset;
 import scala.Tuple2;
@@ -161,9 +161,9 @@ public interface DatabaseRepository {
 
     JavaRDD<IndexPair> queryIndexTableAllDeclare(String logname);
 
-    JavaPairRDD<Tuple2<String,String>, List<Integer>> querySingleTableAllDeclare(String logname);
+    Dataset<EventTypeTracePositions> querySingleTableAllDeclare(String logname);
 
-    JavaRDD<EventPairToTrace> queryIndexOriginalDeclare(String logname);
+    Dataset<EventPairToTrace> queryIndexOriginalDeclare(String logname);
 
     //Below are for the states of Declare
     JavaRDD<PositionState> queryPositionState(String logname);

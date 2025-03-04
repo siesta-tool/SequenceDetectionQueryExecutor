@@ -152,39 +152,9 @@ public class S3Connector extends SparkDatabaseRepository {
     //Below are for declare//
 
 
-    @Override
-    public JavaPairRDD<Tuple2<String, String>, List<Integer>> querySingleTableAllDeclare(String logname) {
-        String path = String.format("%s%s%s", bucket, logname, "/single.parquet/");
-        JavaPairRDD<Tuple2<String, String>, List<Integer>> rdd = sparkSession.read()
-                .parquet(path)
-                .select("event_type","trace_id","position")
-                .groupBy("event_type","trace_id")
-                .agg(functions.collect_list("position").alias("positions"))
-                .toJavaRDD()
-                .map(row->{
-                    String eventType = row.getAs("event_type");
-                    String trace_id = row.getAs("trace_id");
-                    List<Integer> positions = JavaConverters.seqAsJavaList(row.getSeq(2));
-                    return new Tuple3<>(eventType,trace_id,positions);
-                })
-                .keyBy(r -> new Tuple2<>(r._1(), r._2()))
-                .mapValues(Tuple3::_3);
 
-        return rdd;
 
-    }
 
-    @Override
-    public JavaRDD<EventPairToTrace> queryIndexOriginalDeclare(String logname) {
-        String path = String.format("%s%s%s", bucket, logname, "/index.parquet/");
-
-        return sparkSession.read()
-                .parquet(path)
-                .select("eventA","eventB","trace_id")
-                .distinct()
-                .as(Encoders.bean(EventPairToTrace.class))
-                .toJavaRDD();
-    }
 
 
     @Override
