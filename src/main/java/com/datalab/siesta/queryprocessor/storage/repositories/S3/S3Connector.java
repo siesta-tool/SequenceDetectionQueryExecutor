@@ -92,93 +92,6 @@ public class S3Connector extends SparkDatabaseRepository {
     }
 
     @Override
-    public List<Count> getCountForExploration(String logname, String event) {
-        String path = String.format("%s%s%s", bucket, logname, "/count.parquet/");
-        Dataset<Row> df = sparkSession.read().parquet(path);
-        Dataset<Row> explodedDf = df
-                .where(String.format("eventA = '%s'", event))
-                .withColumn("countRecord", functions.explode(
-                        df.col("times")))
-                .select(
-                        df.col("eventA"),
-                        functions.col("countRecord._1").alias("eventB"),
-                        functions.col("countRecord._2").alias("sumDuration"),
-                        functions.col("countRecord._3").alias("count"),
-                        functions.col("countRecord._4").alias("minDuration"),
-                        functions.col("countRecord._5").alias("maxDuration"),
-                        functions.col("countRecord._6").alias("sumSquares")
-                );
-        List<Count> counts = explodedDf.as(Encoders.bean(Count.class))
-                .collectAsList();
-        return counts;
-    }
-
-    @Override
-    public List<Count> getCounts(String logname, Set<EventPair> pairs) {
-        String path = String.format("%s%s%s", bucket, logname, "/count.parquet/");
-        String firstFilter = pairs.stream().map(x -> x.getEventA().getName()).collect(Collectors.toSet())
-                .stream().map(x -> String.format("eventA = '%s'", x))
-                .collect(Collectors.joining(" or "));
-        String secondFilter = pairs.stream().map(x->new Tuple2<>(x.getEventA().getName(),x.getEventB().getName()))
-                .collect(Collectors.toSet())
-                .stream().map(x->String.format("(eventA = '%s' and eventB = '%s')",x._1(),x._2()))
-                .collect(Collectors.joining(" or "));
-
-        Dataset<Row> df = sparkSession.read().parquet(path);
-        Dataset<Row> explodedDf = df
-            .filter(firstFilter)
-            .withColumn("countRecord", functions.explode(
-            df.col("times")))
-            .select(
-                df.col("eventA"),
-                functions.col("countRecord._1").alias("eventB"),
-                functions.col("countRecord._2").alias("sumDuration"),
-                functions.col("countRecord._3").alias("count"),
-                functions.col("countRecord._4").alias("minDuration"),
-                functions.col("countRecord._5").alias("maxDuration"),
-                functions.col("countRecord._6").alias("sumSquares")
-            );
-        Dataset<Count> countDataset = explodedDf.as(Encoders.bean(Count.class));
-        List<Count>  counts = countDataset.filter(secondFilter)
-                .collectAsList();
-
-        return counts;
-    }
-
-    @Override
-    public List<Count> getEventPairs(String logname) {
-        String path = String.format("%s%s%s", bucket, logname, "/count.parquet/");
-        Dataset<Row> df = sparkSession.read().parquet(path);
-        Dataset<Row> explodedDf = df
-                .withColumn("countRecord", functions.explode(
-                        df.col("times")))
-                .select(
-                        df.col("eventA"),
-                        functions.col("countRecord._1").alias("eventB"),
-                        functions.col("countRecord._2").alias("sumDuration"),
-                        functions.col("countRecord._3").alias("count"),
-                        functions.col("countRecord._4").alias("minDuration"),
-                        functions.col("countRecord._5").alias("maxDuration"),
-                        functions.col("countRecord._6").alias("sumSquares")
-                );
-        List<Count> counts = explodedDf.as(Encoders.bean(Count.class))
-                .collectAsList();
-        return counts;
-    }
-
-    @Override
-    public List<String> getEventNames(String logname) {
-        String path = String.format("%s%s%s", bucket, logname, "/single.parquet/");
-        return sparkSession.read().parquet(path)
-                .select("event_type")
-                .distinct()
-                .as(Encoders.STRING())
-                .collectAsList();
-    }
-
-
-
-    @Override
     protected Dataset<EventModel> readSequenceTable(String logname){
         String path = String.format("%s%s%s", bucket, logname, "/seq.parquet/");
         Dataset<EventModel> eventsDF = sparkSession.read().parquet(path)
@@ -206,22 +119,33 @@ public class S3Connector extends SparkDatabaseRepository {
         return eventsDF;
     }
 
-
-
     @Override
-    protected Dataset<IndexPair> getAllEventPairs(Set<EventPair> pairs, String logname,Metadata metadata,Timestamp from,
-                                                                                                  Timestamp till) {
-        String path = String.format("%s%s%s", bucket, logname, "/index.parquet/");
-        String filter = pairs.stream().map(x->new Tuple2<>(x.getEventA().getName(),x.getEventB().getName()))
-                .collect(Collectors.toSet())
-                .stream().map(x->String.format("(eventA = '%s' and eventB = '%s')",x._1(),x._2()))
-                .collect(Collectors.joining(" or "));
-        Dataset<Row> extractedRows = sparkSession.read()
-                .parquet(path)
-                .where(filter);
+    protected Dataset<Count> readCountTable(String logname){
+        String path = String.format("%s%s%s", bucket, logname, "/count.parquet/");
+        Dataset<Row> df = sparkSession.read().parquet(path);
+        Dataset<Row> explodedDf = df
+                .withColumn("countRecord", functions.explode(
+                        df.col("times")))
+                .select(
+                        df.col("eventA"),
+                        functions.col("countRecord._1").alias("eventB"),
+                        functions.col("countRecord._2").alias("sumDuration"),
+                        functions.col("countRecord._3").alias("count"),
+                        functions.col("countRecord._4").alias("minDuration"),
+                        functions.col("countRecord._5").alias("maxDuration"),
+                        functions.col("countRecord._6").alias("sumSquares")
+                );
+        Dataset<Count> counts = explodedDf.as(Encoders.bean(Count.class));
+        return counts;
+    }
 
-        Dataset<IndexPair> indexRecords = super.transformToIndexPairSet(extractedRows,from,till);
-        return indexRecords;
+    protected Dataset<IndexPair> readIndexTable(String logname) {
+        String path = String.format("%s%s%s", bucket, logname, "/index.parquet/");
+        Dataset<Row> indexRecords = sparkSession.read()
+                .parquet(path);
+        Dataset<IndexPair> fixMissingFields = super.transformToIndexPairSet(indexRecords)
+                .as(Encoders.bean(IndexPair.class));
+        return fixMissingFields;
     }
 
 

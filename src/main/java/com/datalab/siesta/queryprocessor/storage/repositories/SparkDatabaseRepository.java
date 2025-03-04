@@ -63,6 +63,28 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         return null;
     }
 
+    /**
+     * Return all events in the CountTable as a dataset in order to be filtered latter
+     * needs to be implemented by each different connector
+     *
+     * @param logname the log database
+     * @return all events in the CountTable
+     */
+    protected Dataset<Count> readCountTable(String logname) {
+        return null;
+    }
+
+    /**
+     * Return all events in the IndexTable as a dataset in order to be filtered latter
+     * needs to be implemented by each different connector
+     *
+     * @param logname the log database
+     * @return all events in the IndexTable
+     */
+    protected Dataset<IndexPair> readIndexTable(String logname) {
+        return null;
+    }
+
 
     /**
      * return all the IndexPairs grouped by the eventA and eventB
@@ -74,20 +96,33 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
      */
     protected Dataset<IndexPair> getAllEventPairs(Set<EventPair> pairs,
                                                   String logname, Metadata metadata, Timestamp from, Timestamp till) {
-        return null;
+        String filter = pairs.stream().map(x->new Tuple2<>(x.getEventA().getName(),x.getEventB().getName()))
+                .collect(Collectors.toSet())
+                .stream().map(x->String.format("(eventA = '%s' and eventB = '%s')",x._1(),x._2()))
+                .collect(Collectors.joining(" or "));
+        Dataset<IndexPair> indexDataset = readIndexTable(logname)
+                        .where(filter); //filter based on events
+
+        if (!metadata.getMode().equals("position")) { // we can filter based on the timestamp also
+            Dataset<Row> indexRows = indexDataset
+                    .withColumn("timestampA-2", functions.to_timestamp(functions.col("timestampA"), "yyyy-MM-dd HH:mm:ss"))
+                    .withColumn("timestampB-2", functions.to_timestamp(functions.col("timestampB"), "yyyy-MM-dd HH:mm:ss"));
+
+            if (from != null) {
+                indexRows = indexRows.filter(functions.col("timestampA-2").isNull()
+                        .or(functions.col("timestampA-2").geq(from)));
+            }
+            if (till != null) {
+                indexRows = indexRows.filter(functions.col("timestampB-2").isNull()
+                        .or(functions.col("timestampB-2").leq(till)));
+            }
+            indexDataset=indexRows.select("trace_id","eventA","eventB","timestampA","timestampB","positionA","positionB")
+                    .as(Encoders.bean(IndexPair.class));
+        }
+
+        return indexDataset;
     }
 
-    /**
-     * return all the IndexPairs grouped by the eventA and eventB
-     * needs to be implemented by each different connector
-     *
-     * @param pairs   set of the pairs
-     * @param logname the log database
-     * @return extract the pairs
-     */
-    protected Dataset<IndexPair> getAllEventPairs(Set<EventPair> pairs, String logname) {
-        return null;
-    }
 
 
     /**
@@ -456,6 +491,75 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
     }
 
     /**
+     * For a given log database, returns all the event pairs found in the log
+     *
+     * @param logname the log database
+     * @return all event pairs found in the log
+     */
+    @Override
+    public List<Count> getEventPairs(String logname) {
+        List<Count> counts = readCountTable(logname)
+                .collectAsList();
+        return counts;
+    }
+
+    /**
+     * @param logname the log database
+     * @return a list with all the event types stored in it
+     */
+    @Override
+    public List<String> getEventNames(String logname) {
+        Dataset<String> events = readSingleTable(logname)
+                .select("eventName")
+                .distinct()
+                .as(Encoders.STRING());
+        return events.collectAsList();
+    }
+
+
+    /**
+     * Retrieves the corresponding stats (min, max duration and so on) from the CountTable, for a given set of event
+     * pairs
+     * @param logname the log database
+     * @param pairs a set with the event pairs
+     * @return a list of the stats for the set of event pairs
+     */
+    @Override
+    public List<Count> getCounts(String logname, Set<EventPair> pairs) {
+        String firstFilter = pairs.stream().map(x -> x.getEventA().getName()).collect(Collectors.toSet())
+                .stream().map(x -> String.format("eventA = '%s'", x))
+                .collect(Collectors.joining(" or "));
+        String secondFilter = pairs.stream().map(x->new Tuple2<>(x.getEventA().getName(),x.getEventB().getName()))
+                .collect(Collectors.toSet())
+                .stream().map(x->String.format("(eventA = '%s' and eventB = '%s')",x._1(),x._2()))
+                .collect(Collectors.joining(" or "));
+        Dataset<Count> counts = readCountTable(logname);
+        //Spark should be able to run this query efficiently and push the first filter before explosion
+        List<Count> countList = counts
+                    .filter(firstFilter) //filter only based on the first event
+                    .filter(secondFilter) //filter based on the et-pair
+                    .collectAsList();
+        return countList;
+    }
+
+    /**
+     * For a given event type inside a log database, returns all the possible next events. That is, since Count
+     * contains for each pair the stats, return all the events that have at least one pair with the given event
+     *
+     * @param logname the log database
+     * @param event   the event type
+     * @return the possible next events
+     */
+    @Override
+    public List<Count> getCountForExploration(String logname, String event) {
+        Dataset<Count> counts = readCountTable(logname);
+        List<Count> countList = counts
+                .filter(String.format("eventA = '%s'", event))
+                .collectAsList();
+        return countList;
+    }
+
+    /**
      * This method transforms the rows read from the Database to IndexPair. Since SIESTA supports both timestamp
      * and positions, this method is responsible to extract the schema and make the corresponding changes. Finally,
      * since this is the place that identifies if there are timestamps in the index, we have also included the
@@ -464,7 +568,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
      * @param indexRows
      * @return
      */
-    protected Dataset<IndexPair> transformToIndexPairSet(Dataset<Row> indexRows, Timestamp from, Timestamp till) {
+    protected Dataset<IndexPair> transformToIndexPairSet(Dataset<Row> indexRows) {
         StructType schema = indexRows.schema();
         // Check if each column exists before selecting it
         boolean hasTimestampA = Arrays.asList(schema.fieldNames()).contains("timestampA");
@@ -478,18 +582,6 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
 
         //here is the filtering for the till and from if the indexing has been done using timestamp
         if (hasTimestampA && hasTimestampB) {
-            indexRows = indexRows
-                    .withColumn("timestampA", functions.to_timestamp(functions.col("timestampA"), "yyyy-MM-dd HH:mm:ss"))
-                    .withColumn("timestampB", functions.to_timestamp(functions.col("timestampB"), "yyyy-MM-dd HH:mm:ss"));
-
-            if (from != null) {
-                indexRows = indexRows.filter(functions.col("timestampA").isNull()
-                        .or(functions.col("timestampA").geq(from)));
-            }
-            if (till != null) {
-                indexRows = indexRows.filter(functions.col("timestampB").isNull()
-                        .or(functions.col("timestampB").leq(till)));
-            }
         }
         Column timestampA = hasTimestampA ? functions.col("timestampA") : functions.lit(null).cast("string");
         Column timestampB = hasTimestampB ? functions.col("timestampB") : functions.lit(null).cast("string");
@@ -528,6 +620,11 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
                 .as(Encoders.bean(EventModel.class));
         return eventsDF;
     }
+
+
+
+
+
     //Below are for Declare//
 
 
