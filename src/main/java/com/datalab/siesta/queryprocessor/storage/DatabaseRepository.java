@@ -153,11 +153,11 @@ public interface DatabaseRepository {
     // Below are for Declare //
     Dataset<Trace> querySequenceTableDeclare(String logname);
 
-    JavaRDD<UniqueTracesPerEventType> querySingleTableDeclare(String logname);
+    Dataset<UniqueTracesPerEventType> querySingleTableDeclare(String logname);
 
-    JavaRDD<EventSupport> querySingleTable(String logname);
+    Dataset<EventSupport> querySingleTable(String logname);
 
-    JavaRDD<UniqueTracesPerEventPair> queryIndexTableDeclare(String logname);
+    Dataset<UniqueTracesPerEventPair> queryIndexTableDeclare(String logname);
 
     JavaRDD<IndexPair> queryIndexTableAllDeclare(String logname);
 

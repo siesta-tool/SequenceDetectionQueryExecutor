@@ -2,11 +2,15 @@ package com.datalab.siesta.queryprocessor.declare.queryPlans.position;
 
 import java.util.List;
 
+import com.datalab.siesta.queryprocessor.declare.model.EventSupport;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Encoders;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.functions;
 import org.apache.spark.storage.StorageLevel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -53,42 +57,44 @@ public class QueryPlanPositions implements QueryPlan{
         QueryPositionWrapper qpw = (QueryPositionWrapper) qw;
         //get number of total traces in database
         Long totalTraces = metadata.getTraces();
-        //broadcast support and traces size
-        Broadcast<Double> bSupport = this.javaSparkContext.broadcast(qpw.getSupport());
-        Broadcast<Long> bTraces = this.javaSparkContext.broadcast(totalTraces);
         //get all sequences from the sequence table
-        Dataset<Trace> traces2 = declareDBConnector.querySequenceTableDeclare(this.metadata.getLogname());
-        //TODO:implement this when neededs
-        JavaRDD<Trace> traces = traces2.toJavaRDD();
-        
-        JavaRDD<Tuple2<String, String>> events = traces.map(x -> new Tuple2<>(x.getEvents().get(0).getEventName(),
-                x.getEvents().get(x.getEvents().size() - 1).getEventName()));
-        events.persist(StorageLevel.MEMORY_AND_DISK());
-        List<Tuple2<String, Double>> firsts = filterThem(events.map(x -> new Tuple2<>(x._1, 1)),
-                bSupport,bTraces);
-        List<Tuple2<String, Double>> lasts = filterThem(events.map(x -> new Tuple2<>(x._2, 1)),
-                bSupport,bTraces);
-        
+        Dataset<Trace> traces = declareDBConnector.querySequenceTableDeclare(this.metadata.getLogname());
+
+        Dataset<Row> firstLast = traces.withColumn("firstEvent", functions.expr("events[0].eventName")) // First event name
+                .withColumn("lastEvent", functions.expr("events[size(events) - 1].eventName")) // Last event name
+                .select("firstEvent", "lastEvent");
+        firstLast.persist(StorageLevel.MEMORY_AND_DISK());
+
+        List<EventSupport> first = firstLast
+                .groupBy("firstEvent")
+                .agg(functions.count("*").alias("count"))
+                .selectExpr("firstEvent as event", String.format("count/%s as support",totalTraces))
+                .filter(functions.col("support").geq((qpw.getSupport())))
+                .as(Encoders.bean(EventSupport.class))
+                .collectAsList();
+
+        List<EventSupport> last = firstLast
+                .groupBy("lastEvent")
+                .agg(functions.count("*").alias("count"))
+                .selectExpr("lastEvent as event", String.format("count/%s as support",totalTraces))
+                .filter(functions.col("support").geq((qpw.getSupport())))
+                .as(Encoders.bean(EventSupport.class))
+                .collectAsList();
+
+
         //set up the response
         QueryResponsePosition response = new QueryResponsePosition();
         if(qpw.getMode().equals("first")){
-            response.setFirstTuple(firsts);
+            response.setFirst(first);
         }else if(qpw.getMode().equals("last")){
-            response.setLastTuple(lasts);
+            response.setLast(last);
         }else{
-            response.setFirstTuple(firsts);
-            response.setLastTuple(lasts);
+            response.setFirst(first);
+            response.setLast(last);
         }
         return response;        
     }
 
-    private List<Tuple2<String, Double>> filterThem(JavaRDD<Tuple2<String, Integer>> traces, Broadcast<Double> bSupport, Broadcast<Long> bTraces) {
-        JavaPairRDD<String, Tuple2<String, Integer>> one = traces.keyBy(x -> x._1)
-                .reduceByKey((x, y) -> new Tuple2<>(x._1, x._2 + y._2));
-        JavaRDD<Tuple2<String, Double>> two = one.map(x -> new Tuple2<>(x._1, x._2._2.doubleValue() / bTraces.getValue()));
-        //filter counts based on the support
-        return two.filter(x -> x._2 >= bSupport.getValue()).collect();
-    }
 
     @Override
     public void setMetadata(Metadata metadata) {

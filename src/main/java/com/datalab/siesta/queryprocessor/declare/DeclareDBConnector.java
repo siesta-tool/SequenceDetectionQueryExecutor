@@ -39,16 +39,16 @@ public class DeclareDBConnector {
         return db.querySequenceTableDeclare(logName);
     }
 
-    public JavaRDD<UniqueTracesPerEventType> querySingleTableDeclare(String logname){
+    public Dataset<UniqueTracesPerEventType> querySingleTableDeclare(String logname){
         return this.db.querySingleTableDeclare(logname);
     }
 
-    public JavaRDD<EventSupport> querySingleTable(String logname){
+    public Dataset<EventSupport> querySingleTable(String logname){
         return this.db.querySingleTable(logname);
     }
 
 
-    public JavaRDD<UniqueTracesPerEventPair> queryIndexTableDeclare(String logname){
+    public Dataset<UniqueTracesPerEventPair> queryIndexTableDeclare(String logname){
         return this.db.queryIndexTableDeclare(logname);
     }
 
@@ -66,11 +66,13 @@ public class DeclareDBConnector {
     }
 
     public Map<String,Long> extractTotalOccurrencesPerEventType(String logname){
-        return this.querySingleTableDeclare(logname)
-                .map(x -> {
-                    long all = x.getOccurrences().stream().mapToLong(OccurrencesPerTrace::getOccurrences).sum();
-                    return new Tuple2<>(x.getEventType(), all);
-                }).keyBy(x -> x._1).mapValues(x -> x._2).collectAsMap();
+        //TODO: fix this
+        return null;
+//        return this.querySingleTableDeclare(logname)
+//                .map(x -> {
+//                    long all = x.getOccurrences().stream().mapToLong(OccurrencesPerTrace::getOccurrences).sum();
+//                    return new Tuple2<>(x.getEventType(), all);
+//                }).keyBy(x -> x._1).mapValues(x -> x._2).collectAsMap();
     }
 
     public JavaRDD<PositionState> queryPositionState(String logname){

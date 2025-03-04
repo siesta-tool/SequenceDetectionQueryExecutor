@@ -151,55 +151,6 @@ public class S3Connector extends SparkDatabaseRepository {
 
     //Below are for declare//
 
-    @Override
-    public Dataset<Trace> querySequenceTableDeclare(String logname) {
-        Dataset<EventModel> eventDF = this.readSequenceTable(logname);
-        Dataset<Trace> groupedDF = eventDF
-            .groupBy("traceId")// Group by trace_id and collect events into a list
-            .agg(functions.collect_list(functions
-                            .struct("eventName", "traceID", "timestamp", "position"))
-                    .alias("events"))
-                .as(Encoders.bean(Trace.class));
-        return groupedDF;
-    }
-
-    @Override
-    public JavaRDD<UniqueTracesPerEventType> querySingleTableDeclare(String logname) {
-        String path = String.format("%s%s%s", bucket, logname, "/single.parquet/");
-
-        return sparkSession.read()
-                .parquet(path)
-                .select("event_type","trace_id")
-                .groupBy("event_type","trace_id")
-                .agg(functions.size(functions.collect_list("event_type")).alias("unique"))
-                .toJavaRDD()
-                .groupBy((Function<Row, String>) ev->ev.getAs("event_type"))
-                .map((Function<Tuple2<String, Iterable<Row>>,UniqueTracesPerEventType>) ev->{
-                    String event_type = ev._1();
-                    List<OccurrencesPerTrace> opt = new ArrayList<>();
-                    for(Row r: ev._2()){
-                        opt.add(new OccurrencesPerTrace(r.getAs("trace_id"),r.getAs("unique")));
-                    }
-                    return new UniqueTracesPerEventType(event_type,opt);
-                });
-    }
-
-    @Override
-    public JavaRDD<EventSupport> querySingleTable(String logname){
-        String path = String.format("%s%s%s", bucket, logname, "/single.parquet/");
-
-        return sparkSession.read()
-                .parquet(path)
-                .select("event_type","trace_id")
-                .groupBy("event_type")
-                .agg(functions.size(functions.collect_list("event_type")).alias("unique"))
-                .toJavaRDD()
-                .map((Function<Row, EventSupport>) row -> {
-                    String event = row.getAs("event_type");
-                    int s = row.getAs("unique");
-                    return new EventSupport(event,s);
-                });
-    }
 
     @Override
     public JavaPairRDD<Tuple2<String, String>, List<Integer>> querySingleTableAllDeclare(String logname) {
@@ -235,23 +186,6 @@ public class S3Connector extends SparkDatabaseRepository {
                 .toJavaRDD();
     }
 
-    @Override
-    public JavaRDD<UniqueTracesPerEventPair> queryIndexTableDeclare(String logname) {
-        String path = String.format("%s%s%s", bucket, logname, "/index.parquet/");
-
-        return sparkSession.read().parquet(path)
-                .select("eventA","eventB","trace_id")
-                .distinct()
-                .toJavaRDD()
-                .groupBy((Function<Row, Tuple2<String,String>>)row->new Tuple2<>(row.getAs("eventA"),row.getAs("eventB")))
-                .map((Function<Tuple2<Tuple2<String,String>, Iterable<Row>>, UniqueTracesPerEventPair>)row->{
-                    List<String> uniqueTraces = new ArrayList<>();
-                    for(Row r: row._2()){
-                        uniqueTraces.add(r.getAs("trace_id"));
-                    }
-                    return new UniqueTracesPerEventPair(row._1()._1(),row._1()._2,uniqueTraces);
-                } );
-    }
 
     @Override
     public JavaRDD<IndexPair> queryIndexTableAllDeclare(String logname) {

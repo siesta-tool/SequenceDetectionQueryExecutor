@@ -1,5 +1,9 @@
 package com.datalab.siesta.queryprocessor.storage.repositories;
 
+import com.datalab.siesta.queryprocessor.declare.model.EventSupport;
+import com.datalab.siesta.queryprocessor.declare.model.OccurrencesPerTrace;
+import com.datalab.siesta.queryprocessor.declare.model.UniqueTracesPerEventPair;
+import com.datalab.siesta.queryprocessor.declare.model.UniqueTracesPerEventType;
 import com.datalab.siesta.queryprocessor.model.DBModel.*;
 import com.datalab.siesta.queryprocessor.model.Events.*;
 import com.datalab.siesta.queryprocessor.model.ExtractedPairsForPatternDetection;
@@ -9,7 +13,6 @@ import com.datalab.siesta.queryprocessor.storage.model.EventModel;
 import com.datalab.siesta.queryprocessor.storage.model.GroupEvents;
 import com.datalab.siesta.queryprocessor.storage.model.Trace;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
@@ -623,9 +626,57 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
 
 
 
-
-
     //Below are for Declare//
+    @Override
+    public Dataset<Trace> querySequenceTableDeclare(String logname) {
+        Dataset<EventModel> eventDF = this.readSequenceTable(logname);
+        Dataset<Trace> groupedDF = eventDF
+                .groupBy("traceId")// Group by trace_id and collect events into a list
+                .agg(functions.collect_list(functions
+                                .struct("eventName", "traceID", "timestamp", "position"))
+                        .alias("events"))
+                .as(Encoders.bean(Trace.class));
+        return groupedDF;
+    }
 
+    @Override
+    public Dataset<UniqueTracesPerEventType> querySingleTableDeclare(String logname) {
+        Dataset<EventModel> eventDF = this.readSingleTable(logname);
+        Dataset<UniqueTracesPerEventType> uniqueTracesPerEventTypeDataset = eventDF
+                .selectExpr("eventName","traceId")
+                .groupBy("eventName","traceId")
+                .agg(functions.count("*").alias("occs"))
+                .withColumn("occs", functions.col("occs").cast("int"))
+                .withColumn("occurrence",functions.struct("traceId","occs"))
+                .groupBy("eventName")
+                .agg(functions.collect_list("occurrence").alias("occurrences"))
+                .as(Encoders.bean(UniqueTracesPerEventType.class));
+        return uniqueTracesPerEventTypeDataset;
+    }
+
+    @Override
+    public Dataset<EventSupport> querySingleTable(String logname){
+        Dataset<EventModel> eventDF = this.readSingleTable(logname);
+        Dataset<EventSupport> supportDF = eventDF.select("eventName","traceId")
+                .groupBy("eventName")
+                .agg(functions.count("traceId")).alias("support")
+                .selectExpr("event_type as event, support")
+                .as(Encoders.bean(EventSupport.class));
+        return supportDF;
+    }
+
+    @Override
+    public Dataset<UniqueTracesPerEventPair> queryIndexTableDeclare(String logname) {
+        Dataset<IndexPair> indexRecords = readIndexTable(logname);
+
+        Dataset<UniqueTracesPerEventPair> uniqueTracesPerEventPairDataset = indexRecords
+                .select("eventA","eventB","trace_id")
+                .distinct()
+                .groupBy("eventA","eventB")
+                .agg(functions.collect_list("trace_id").alias("uniqueTraces"))
+                .as(Encoders.bean(UniqueTracesPerEventPair.class));
+
+        return uniqueTracesPerEventPairDataset;
+    }
 
 }
