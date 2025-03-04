@@ -7,10 +7,8 @@ import com.datalab.siesta.queryprocessor.model.Utils.Utils;
 import com.datalab.siesta.queryprocessor.storage.DatabaseRepository;
 import com.datalab.siesta.queryprocessor.storage.model.EventModel;
 import com.datalab.siesta.queryprocessor.storage.model.GroupEvents;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
+import com.datalab.siesta.queryprocessor.storage.model.Trace;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.types.DataTypes;
@@ -138,6 +136,12 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         return this.transformEventModelToMap(filteredTimestamps);
     }
 
+    /**
+     * Utility class that is used from querySequenceTable methods to transform the Dataset of
+     * EventModel to Map<traceId, List<EventBoth>>
+     * @param events a dataset of augmented EventModel (can include more than the standard fields of EventModel)
+     * @return a Map of the traceIds to the corresponding events
+     */
     private Map<String, List<EventBoth>> transformEventModelToMap(Dataset<Row> events) {
         List<EventModel> eventsList = events
                 .select("traceId", "eventName", "timestamp", "position")
@@ -149,31 +153,6 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
                         new EventBoth(x.getEventName(), x.getTraceId(), Timestamp.valueOf(x.getTimestamp()), x.getPosition()))
                 .collect(Collectors.groupingByConcurrent(EventBoth::getTraceID));
         return response;
-    }
-
-    /**
-     * This function reads data from the Sequence table into a JavaRDD, any database that utilizes spark should
-     * override it
-     *
-     * @param logname   Name of the log
-     * @param bTraceIds broadcasted the values of the trace ids we are interested in
-     * @return a JavaRDD<Trace>
-     */
-    protected Dataset<Trace> querySequenceTablePrivate(String logname, Broadcast<Set<String>> bTraceIds) {
-        return null;
-    }
-
-    /**
-     * Retrieves data from the primary inverted index
-     *
-     * @param pairs   a set of the pairs that we need to retrieve information for
-     * @param logname the log database
-     * @return the corresponding records from the index
-     */
-    @Override
-    public IndexRecords queryIndexTable(Set<EventPair> pairs, String logname) {
-        Dataset<IndexPair> results = this.getAllEventPairs(pairs, logname);
-        return this.transformToIndexRecords(results);
     }
 
     /**
@@ -192,6 +171,12 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         return this.transformToIndexRecords(results);
     }
 
+    /**
+     * Transform the Dataset of IndexPair (which is a utility class in storage package) to IndexRecords
+     * which are objects handled by the remaining program
+     * @param indexPairs records from the IndexTable
+     * @return an IndexRecords object
+     */
     private IndexRecords transformToIndexRecords(Dataset<IndexPair> indexPairs) {
         Dataset<Row> groupedDf = indexPairs.withColumn("indexPair",
                         functions.struct("trace_id", "eventA", "eventB", "timestampA",
@@ -357,37 +342,31 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
     }
 
     /**
-     * Should be overridden by any storage that uses spark
-     *
-     * @param logname    The name of the Log
-     * @param traceIds   The traces we want to detect
-     * @param eventTypes The event types to be collected
-     * @return a JavaRDD<EventBoth> that will be used in querySingleTable and querySingleTableGroups
+     * Extract events from the SingleTable and groups them based on the traceID
+     * @param logname the log database
+     * @param eventTypes the events that will we retrieved
+     * @return
      */
-    protected Dataset<EventBoth> getFromSingle(String logname, Set<String> traceIds, Set<String> eventTypes) {
-        Broadcast<Set<String>> bTraces = javaSparkContext.broadcast(traceIds);
-        //TODO: implement this when needed
-        return null;
-//        return queryFromSingle(logname, eventTypes).filter((Function<EventBoth, Boolean>) event ->
-//                bTraces.getValue().contains(event.getTraceID()));
-    }
-
-    protected JavaRDD<EventBoth> queryFromSingle(String logname, Set<String> eventTypes) {
-        return null;
-    }
-
     @Override
     public Map<String, List<EventBoth>> querySingleTable(String logname, Set<String> eventTypes) {
-        //TODO: fix this or remove it
-        JavaRDD<EventBoth> events = queryFromSingle(logname, eventTypes);
-        JavaPairRDD<String, Iterable<EventBoth>> pairs = events.groupBy((Function<EventBoth, String>) Event::getName);
-        return pairs.mapValues((Function<Iterable<EventBoth>, List<EventBoth>>) e -> {
-            List<EventBoth> tempList = new ArrayList<>();
-            for (EventBoth ev : e) {
-                tempList.add(ev);
-            }
-            return tempList;
-        }).collectAsMap();
+        Dataset<Trace> events = this.readSingleTable(logname)
+                .filter(functions.col("eventName").isin(eventTypes.toArray()))
+                .withColumn("event",functions.struct("traceId","eventName","timestamp","position"))
+                .groupBy("traceId")
+                .agg(functions.collect_list("event").alias("events"))
+                .as(Encoders.bean(Trace.class));
+
+        Map<String,List<EventBoth>> response = events.collectAsList().stream()
+                .collect(Collectors.toMap(
+                        Trace::getTraceId,
+                trace-> trace.getEvents().stream().map(event-> new EventBoth(
+                        event.getEventName(),
+                        event.getTraceId(),
+                        Timestamp.valueOf(event.getTimestamp()),
+                        event.getPosition())).collect(Collectors.toList())
+                        )
+                );
+        return response;
     }
 
     /**
@@ -524,6 +503,11 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         return indexPairDataset;
     }
 
+    /**
+     * Extract all events that appear in IndexTable records. Essentially, split event pairs into two
+     * @param indexPairs records from IndexTable in the form of a Dataset
+     * @return a dataset of the unique events (i.e, uses distinct since one event might appear in multiple pairs)
+     */
     private Dataset<EventModel> getEventsFromIndexRecords(Dataset<IndexPair> indexPairs) {
         Dataset<Row> eventA_DF = indexPairs
                 .selectExpr(

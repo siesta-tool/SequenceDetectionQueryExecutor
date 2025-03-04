@@ -16,7 +16,7 @@ import com.datalab.siesta.queryprocessor.declare.DeclareDBConnector;
 import com.datalab.siesta.queryprocessor.declare.queryResponses.QueryResponsePosition;
 import com.datalab.siesta.queryprocessor.declare.queryWrappers.QueryPositionWrapper;
 import com.datalab.siesta.queryprocessor.model.DBModel.Metadata;
-import com.datalab.siesta.queryprocessor.model.DBModel.Trace;
+import com.datalab.siesta.queryprocessor.storage.model.Trace;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.QueryPlan;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponse;
 import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryWrapper;

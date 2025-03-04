@@ -12,10 +12,10 @@ import com.datalab.siesta.queryprocessor.declare.model.declareState.PositionStat
 import com.datalab.siesta.queryprocessor.declare.model.declareState.UnorderStateI;
 import com.datalab.siesta.queryprocessor.declare.model.declareState.UnorderStateU;
 import com.datalab.siesta.queryprocessor.model.DBModel.*;
-import com.datalab.siesta.queryprocessor.model.Events.EventBoth;
 import com.datalab.siesta.queryprocessor.model.Events.EventPair;
 import com.datalab.siesta.queryprocessor.model.Utils.Utils;
 import com.datalab.siesta.queryprocessor.storage.model.EventModel;
+import com.datalab.siesta.queryprocessor.storage.model.Trace;
 import com.datalab.siesta.queryprocessor.storage.repositories.SparkDatabaseRepository;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -177,24 +177,6 @@ public class S3Connector extends SparkDatabaseRepository {
     }
 
 
-    @Override
-    protected Dataset<Trace> querySequenceTablePrivate(String logname, Broadcast<Set<String>> bTraceIds) {
-        Dataset<Trace> traces = this.querySequenceTableDeclare(logname);
-        Dataset<Trace> filtered = traces.filter(functions.col("traceID").isin(bTraceIds.value().toArray()));
-        return filtered;
-    }
-
-
-    @Override
-    protected Dataset<EventBoth> getFromSingle(String logname, Set<String> traceIds, Set<String> eventTypes) {
-        String path = String.format("%s%s%s", bucket, logname, "/single.parquet/");
-
-
-        Broadcast<Set<String>> bTraceIds = javaSparkContext.broadcast(traceIds);
-        Broadcast<Set<String>> bEventTypes = javaSparkContext.broadcast(eventTypes);
-        //TODO: implement this when needed
-        return null;
-    }
 
     @Override
     protected Dataset<EventModel> readSequenceTable(String logname){

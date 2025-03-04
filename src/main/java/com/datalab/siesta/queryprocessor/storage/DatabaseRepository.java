@@ -11,16 +11,14 @@ import com.datalab.siesta.queryprocessor.declare.model.declareState.PositionStat
 import com.datalab.siesta.queryprocessor.declare.model.declareState.UnorderStateI;
 import com.datalab.siesta.queryprocessor.declare.model.declareState.UnorderStateU;
 import com.datalab.siesta.queryprocessor.model.DBModel.*;
-import com.datalab.siesta.queryprocessor.model.Events.Event;
 import com.datalab.siesta.queryprocessor.model.Events.EventBoth;
 import com.datalab.siesta.queryprocessor.model.Events.EventPair;
-import com.datalab.siesta.queryprocessor.model.Events.EventPos;
 import com.datalab.siesta.queryprocessor.model.ExtractedPairsForPatternDetection;
+import com.datalab.siesta.queryprocessor.storage.model.Trace;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.Dataset;
 import scala.Tuple2;
-import scala.Tuple3;
 
 import java.sql.Timestamp;
 import java.util.List;
@@ -102,14 +100,6 @@ public interface DatabaseRepository {
      * positives.
      */
     IndexMiddleResult patterDetectionTraceIds(String logname, List<Tuple2<EventPair, Count>> combined, Metadata metadata, ExtractedPairsForPatternDetection pairs, Timestamp from, Timestamp till);
-
-    /**
-     * Retrieves data from the primary inverted index
-     * @param pairs a set of the pairs that we need to retrieve information for
-     * @param logname the log database
-     * @return the corresponding records from the index
-     */
-    IndexRecords queryIndexTable(Set<EventPair> pairs, String logname);
 
    /**
      * Retrieves data from the primary inverted index

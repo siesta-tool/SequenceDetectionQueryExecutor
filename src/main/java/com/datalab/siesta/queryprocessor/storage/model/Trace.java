@@ -1,15 +1,10 @@
-package com.datalab.siesta.queryprocessor.model.DBModel;
+package com.datalab.siesta.queryprocessor.storage.model;
 
-import com.datalab.siesta.queryprocessor.model.Events.EventBoth;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.io.Serializable;
-import java.sql.Timestamp;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * A sequence of events. It is represented by a trace id and a list of the events it contains in the correct order.
@@ -18,15 +13,15 @@ import java.util.stream.Collectors;
 @Setter
 public class Trace implements Serializable {
 
-    private String traceID;
+    private String traceId;
 
     private List<EventModel> events;
 
     public Trace() {
     }
 
-    public Trace(String traceID, List<EventModel> events) {
-        this.traceID = traceID;
+    public Trace(String traceId, List<EventModel> events) {
+        this.traceId = traceId;
         this.events = events;
     }
 

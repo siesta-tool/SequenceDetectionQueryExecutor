@@ -12,9 +12,7 @@ import com.datalab.siesta.queryprocessor.declare.model.declareState.PositionStat
 import com.datalab.siesta.queryprocessor.declare.model.declareState.UnorderStateI;
 import com.datalab.siesta.queryprocessor.declare.model.declareState.UnorderStateU;
 import com.datalab.siesta.queryprocessor.model.DBModel.IndexPair;
-import com.datalab.siesta.queryprocessor.model.DBModel.Trace;
-import com.datalab.siesta.queryprocessor.model.Events.EventBoth;
-import com.datalab.siesta.queryprocessor.model.Events.EventPos;
+import com.datalab.siesta.queryprocessor.storage.model.Trace;
 import com.datalab.siesta.queryprocessor.storage.DatabaseRepository;
 
 import org.apache.spark.api.java.JavaPairRDD;
@@ -23,7 +21,6 @@ import org.apache.spark.sql.Dataset;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import scala.Tuple2;
-import scala.Tuple3;
 
 import java.util.List;
 import java.util.Map;
