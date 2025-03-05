@@ -68,7 +68,7 @@ public class QueryPlanOrderedRelations implements QueryPlan {
         joined.persist(StorageLevel.MEMORY_AND_DISK());
 
         //count the occurrences using the evaluate constraints
-        Dataset<Abstract2OrderConstraint> c = evaluateConstraint(joined, qpw.getConstraint());
+        Dataset<Abstract2OrderConstraint> c = evaluateConstraint(joined);
         //filter based on the values of the SingleTable and the provided support and write to the response
         Dataset<EventTypeOccurrences> eventTypeOccurrencesDataset = declareDBConnector
                 .extractTotalOccurrencesPerEventType(metadata.getLogname());
@@ -118,12 +118,10 @@ public class QueryPlanOrderedRelations implements QueryPlan {
      * constraint type.
      *
      * @param joined     a rdd of {@link EventPairTraceOccurrences}
-     * @param constraint a string that describes the constraint under evaluation 'response', 'precedence'
-     *                   or 'succession' (which is the default execution)
      * @return a rdd of {@link  Abstract2OrderConstraint}
      */
     public Dataset<Abstract2OrderConstraint> evaluateConstraint
-    (Dataset<EventPairTraceOccurrences> joined, String constraint) {
+    (Dataset<EventPairTraceOccurrences> joined) {
         Dataset<Row> response = joined
                 .withColumn("s_r", functions.expr(
                         "size(filter(occurrencesA, a -> exists(occurrencesB, y -> y > a)))"
@@ -143,7 +141,6 @@ public class QueryPlanOrderedRelations implements QueryPlan {
                 .as(Encoders.bean(Abstract2OrderConstraint.class));
 
         return unioned;
-
     }
 
 
@@ -159,26 +156,7 @@ public class QueryPlanOrderedRelations implements QueryPlan {
 
         //calculates the support based on either the total occurrences of the first event (response)
         //or the occurrences of the second event (precedence)
-        Dataset<Row> firstEvent = eventTypeOccurrences.as("et")
-                .withColumnRenamed("eventName", "eventA")
-                .withColumnRenamed("numberOfTraces", "totalA");
-
-        Dataset<Row> secondEvent = eventTypeOccurrences.as("et2")
-                .withColumnRenamed("eventName", "eventB")
-                .withColumnRenamed("numberOfTraces", "totalB");
-
-        Dataset<Row> joinedDf = c.as("primary")
-                .join(firstEvent.as("et"),
-                        functions.col("primary.eventA").equalTo(functions.col("et.eventA")), "left")
-                .join(secondEvent.as("et2"),
-                        functions.col("primary.eventB").equalTo(functions.col("et2.eventB")), "left");
-
-        Dataset<Row> intermediate = joinedDf
-                .withColumn("total", functions.expr(
-                        "CASE WHEN mode = 'r' THEN totalA ELSE totalB END"
-                ))
-                .withColumn("support", functions.col("occurrences").cast("double").divide(functions.col("total")))
-                .select("mode", "primary.eventA", "primary.eventB", "support");
+        Dataset<Row> intermediate = getIntermediate(eventTypeOccurrences,c);
 
         intermediate.persist(StorageLevel.MEMORY_AND_DISK());
 
@@ -251,6 +229,39 @@ public class QueryPlanOrderedRelations implements QueryPlan {
             setResults(precedence, "precedence");
         }
         intermediate.unpersist();
+    }
+
+    /**
+     * This method joins the two datasets and calculates the support, which is based
+     * either on the total occurrences of the first event (response) or the occurrences of the
+     * second event (precedence). This is handled by the case statement
+     * @param eventTypeOccurrences occurrences of each event type
+     * @param c dataset contains the pattern occurrences
+     * @return
+     */
+    protected Dataset<Row> getIntermediate(Dataset<EventTypeOccurrences> eventTypeOccurrences,
+                                           Dataset<Abstract2OrderConstraint> c){
+        Dataset<Row> firstEvent = eventTypeOccurrences.as("et")
+                .withColumnRenamed("eventName", "eventA")
+                .withColumnRenamed("numberOfTraces", "totalA");
+
+        Dataset<Row> secondEvent = eventTypeOccurrences.as("et2")
+                .withColumnRenamed("eventName", "eventB")
+                .withColumnRenamed("numberOfTraces", "totalB");
+
+        Dataset<Row> joinedDf = c.as("primary")
+                .join(firstEvent.as("et"),
+                        functions.col("primary.eventA").equalTo(functions.col("et.eventA")), "left")
+                .join(secondEvent.as("et2"),
+                        functions.col("primary.eventB").equalTo(functions.col("et2.eventB")), "left");
+
+        Dataset<Row> intermediate = joinedDf
+                .withColumn("total", functions.expr(
+                        "CASE WHEN mode = 'r' THEN totalA ELSE totalB END"
+                ))
+                .withColumn("support", functions.col("occurrences").cast("double").divide(functions.col("total")))
+                .select("mode", "primary.eventA", "primary.eventB", "support");
+        return intermediate;
     }
 
 
