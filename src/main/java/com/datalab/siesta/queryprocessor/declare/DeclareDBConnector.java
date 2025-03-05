@@ -7,13 +7,11 @@ import com.datalab.siesta.queryprocessor.declare.model.declareState.OrderState;
 import com.datalab.siesta.queryprocessor.declare.model.declareState.PositionState;
 import com.datalab.siesta.queryprocessor.declare.model.declareState.UnorderStateI;
 import com.datalab.siesta.queryprocessor.declare.model.declareState.UnorderStateU;
-import com.datalab.siesta.queryprocessor.model.DBModel.IndexPair;
 import com.datalab.siesta.queryprocessor.storage.model.EventTypeTracePositions;
 import com.datalab.siesta.queryprocessor.storage.model.Trace;
 import com.datalab.siesta.queryprocessor.storage.DatabaseRepository;
 
 
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.functions;
@@ -47,10 +45,6 @@ public class DeclareDBConnector {
         return this.db.queryIndexTableDeclare(logname);
     }
 
-    public JavaRDD<IndexPair> queryIndexTableAllDeclare(String logname){
-        return this.db.queryIndexTableAllDeclare(logname);
-    }
-
     public Dataset<EventTypeTracePositions> querySingleTableAllDeclare(String logname){
         return this.db.querySingleTableAllDeclare(logname);
     }
@@ -70,24 +64,24 @@ public class DeclareDBConnector {
         return eventTypeOccurrencesDataset;
     }
 
-    public JavaRDD<PositionState> queryPositionState(String logname){
+    public Dataset<PositionState> queryPositionState(String logname){
         return this.db.queryPositionState(logname);
     }
 
-    public JavaRDD<ExistenceState> queryExistenceState(String logname){
+    public Dataset<ExistenceState> queryExistenceState(String logname){
         return this.db.queryExistenceState(logname);
     }
 
-    public JavaRDD<UnorderStateI> queryUnorderStateI(String logname){
+    public Dataset<UnorderStateI> queryUnorderStateI(String logname){
         return this.db.queryUnorderStateI(logname);
     }
-    public JavaRDD<UnorderStateU> queryUnorderStateU(String logname){
+    public Dataset<UnorderStateU> queryUnorderStateU(String logname){
         return this.db.queryUnorderStateU(logname);
     }
-    public JavaRDD<OrderState> queryOrderState(String logname){
+    public Dataset<OrderState> queryOrderState(String logname){
         return this.db.queryOrderState(logname);
     }
-    public JavaRDD<NegativeState> queryNegativeState(String logname){
+    public Dataset<NegativeState> queryNegativeState(String logname){
         return this.db.queryNegativeState(logname);
     }
 

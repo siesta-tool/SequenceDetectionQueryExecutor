@@ -28,8 +28,8 @@ import java.util.stream.Collectors;
 @RequestScope
 public class QueryPlanOrderedRelationsAlternate extends QueryPlanOrderedRelations {
     public QueryPlanOrderedRelationsAlternate(DeclareDBConnector declareDBConnector, JavaSparkContext javaSparkContext,
-                                              OrderedRelationsUtilityFunctions utils, DeclareUtilities declareUtilities) {
-        super(declareDBConnector, javaSparkContext, utils, declareUtilities);
+                                              DeclareUtilities declareUtilities) {
+        super(declareDBConnector, javaSparkContext, declareUtilities);
     }
 
     @Override

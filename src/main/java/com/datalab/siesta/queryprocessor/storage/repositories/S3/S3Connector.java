@@ -1,10 +1,5 @@
 package com.datalab.siesta.queryprocessor.storage.repositories.S3;
 
-import com.datalab.siesta.queryprocessor.declare.model.EventPairToTrace;
-import com.datalab.siesta.queryprocessor.declare.model.EventSupport;
-import com.datalab.siesta.queryprocessor.declare.model.OccurrencesPerTrace;
-import com.datalab.siesta.queryprocessor.declare.model.UniqueTracesPerEventPair;
-import com.datalab.siesta.queryprocessor.declare.model.UniqueTracesPerEventType;
 import com.datalab.siesta.queryprocessor.declare.model.declareState.ExistenceState;
 import com.datalab.siesta.queryprocessor.declare.model.declareState.NegativeState;
 import com.datalab.siesta.queryprocessor.declare.model.declareState.OrderState;
@@ -12,37 +7,26 @@ import com.datalab.siesta.queryprocessor.declare.model.declareState.PositionStat
 import com.datalab.siesta.queryprocessor.declare.model.declareState.UnorderStateI;
 import com.datalab.siesta.queryprocessor.declare.model.declareState.UnorderStateU;
 import com.datalab.siesta.queryprocessor.model.DBModel.*;
-import com.datalab.siesta.queryprocessor.model.Events.EventPair;
 import com.datalab.siesta.queryprocessor.model.Utils.Utils;
 import com.datalab.siesta.queryprocessor.storage.model.EventModel;
-import com.datalab.siesta.queryprocessor.storage.model.Trace;
 import com.datalab.siesta.queryprocessor.storage.repositories.SparkDatabaseRepository;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.Function;
-import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Service;
-import scala.Tuple2;
-import scala.Tuple3;
-import scala.collection.JavaConverters;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.sql.Timestamp;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @Configuration
 //@ConditionalOnProperty(
@@ -148,95 +132,63 @@ public class S3Connector extends SparkDatabaseRepository {
         return fixMissingFields;
     }
 
-
     //Below are for declare//
-
-
-
-
-
-
-
     @Override
-    public JavaRDD<IndexPair> queryIndexTableAllDeclare(String logname) {
-        String path = String.format("%s%s%s", bucket, logname, "/index.parquet/");
-
-        return sparkSession.read()
-                .parquet(path)
-                .toJavaRDD()
-                .map((Function<Row, IndexPair>) row -> {
-                    String eventA = row.getAs("eventA");
-                    String eventB = row.getAs("eventB");
-                    String trace_id = row.getAs("trace_id");
-                    int positionA = row.getAs("positionA");
-                    int positionB = row.getAs("positionB");
-                    return new IndexPair(trace_id,eventA,eventB,positionA,positionB);
-                });
-    }
-
-
-    @Override
-    public JavaRDD<PositionState> queryPositionState(String logname) {
+    public Dataset<PositionState> queryPositionState(String logname) {
         String path = String.format("%s%s%s", bucket, logname, "/declare/position.parquet/");
 
         return sparkSession.read()
         .parquet(path)
-        .as(Encoders.bean(PositionState.class))
-        .toJavaRDD();
+        .as(Encoders.bean(PositionState.class));
     }
 
     @Override
-    public JavaRDD<ExistenceState> queryExistenceState(String logname) {
+    public Dataset<ExistenceState> queryExistenceState(String logname) {
         String path = String.format("%s%s%s", bucket, logname, "/declare/existence.parquet/");
 
         return sparkSession.read()
         .parquet(path)
-        .as(Encoders.bean(ExistenceState.class))
-        .toJavaRDD();
+        .as(Encoders.bean(ExistenceState.class));
     }
 
 
     @Override
-    public JavaRDD<UnorderStateI> queryUnorderStateI(String logname) {
+    public Dataset<UnorderStateI> queryUnorderStateI(String logname) {
         String path = String.format("%s%s%s", bucket, logname, "/declare/unorder/i.parquet/");
 
         return sparkSession.read()
         .parquet(path)
-        .as(Encoders.bean(UnorderStateI.class))
-        .toJavaRDD();
+        .as(Encoders.bean(UnorderStateI.class));
     }
 
 
     @Override
-    public JavaRDD<UnorderStateU> queryUnorderStateU(String logname) {
+    public Dataset<UnorderStateU> queryUnorderStateU(String logname) {
         String path = String.format("%s%s%s", bucket, logname, "/declare/unorder/u.parquet/");
 
         return sparkSession.read()
         .parquet(path)
-        .as(Encoders.bean(UnorderStateU.class))
-        .toJavaRDD();
+        .as(Encoders.bean(UnorderStateU.class));
     }
 
 
     @Override
-    public JavaRDD<OrderState> queryOrderState(String logname) {
+    public Dataset<OrderState> queryOrderState(String logname) {
         String path = String.format("%s%s%s", bucket, logname, "/declare/order.parquet");
 
         return sparkSession.read()
         .parquet(path)
-        .as(Encoders.bean(OrderState.class))
-        .toJavaRDD();
+        .as(Encoders.bean(OrderState.class));
     }
 
 
     @Override
-    public JavaRDD<NegativeState> queryNegativeState(String logname) {
+    public Dataset<NegativeState> queryNegativeState(String logname) {
         String path = String.format("%s%s%s", bucket, logname, "/declare/negatives.parquet");
 
         return sparkSession.read()
         .parquet(path)
-        .as(Encoders.bean(NegativeState.class))
-        .toJavaRDD();
+        .as(Encoders.bean(NegativeState.class));
     }
 
 

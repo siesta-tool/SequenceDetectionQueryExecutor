@@ -16,7 +16,6 @@ import com.datalab.siesta.queryprocessor.model.Events.EventPair;
 import com.datalab.siesta.queryprocessor.model.ExtractedPairsForPatternDetection;
 import com.datalab.siesta.queryprocessor.storage.model.EventTypeTracePositions;
 import com.datalab.siesta.queryprocessor.storage.model.Trace;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.Dataset;
 import scala.Tuple2;
 
@@ -159,19 +158,17 @@ public interface DatabaseRepository {
 
     Dataset<UniqueTracesPerEventPair> queryIndexTableDeclare(String logname);
 
-    JavaRDD<IndexPair> queryIndexTableAllDeclare(String logname);
-
     Dataset<EventTypeTracePositions> querySingleTableAllDeclare(String logname);
 
     Dataset<EventPairToTrace> queryIndexOriginalDeclare(String logname);
 
     //Below are for the states of Declare
-    JavaRDD<PositionState> queryPositionState(String logname);
-    JavaRDD<ExistenceState> queryExistenceState(String logname);
-    JavaRDD<UnorderStateI> queryUnorderStateI(String logname);
-    JavaRDD<UnorderStateU> queryUnorderStateU(String logname);
-    JavaRDD<OrderState> queryOrderState(String logname);
-    JavaRDD<NegativeState> queryNegativeState(String logname);
+    Dataset<PositionState> queryPositionState(String logname);
+    Dataset<ExistenceState> queryExistenceState(String logname);
+    Dataset<UnorderStateI> queryUnorderStateI(String logname);
+    Dataset<UnorderStateU> queryUnorderStateU(String logname);
+    Dataset<OrderState> queryOrderState(String logname);
+    Dataset<NegativeState> queryNegativeState(String logname);
 
 
 }

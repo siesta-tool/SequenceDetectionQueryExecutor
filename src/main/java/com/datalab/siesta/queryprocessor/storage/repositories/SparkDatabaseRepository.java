@@ -660,8 +660,8 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         Dataset<EventModel> eventDF = this.readSingleTable(logname);
         Dataset<EventSupport> supportDF = eventDF.select("eventName", "traceId")
                 .groupBy("eventName")
-                .agg(functions.count("traceId")).alias("support")
-                .selectExpr("event_type as event, support")
+                .agg(functions.count("traceId").alias("support"))
+                .selectExpr("eventName as event", "support")
                 .as(Encoders.bean(EventSupport.class));
         return supportDF;
     }

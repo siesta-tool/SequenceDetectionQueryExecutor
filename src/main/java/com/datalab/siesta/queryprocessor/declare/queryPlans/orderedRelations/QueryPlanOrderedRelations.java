@@ -36,15 +36,13 @@ public class QueryPlanOrderedRelations implements QueryPlan {
     protected JavaSparkContext javaSparkContext;
     @Getter
     protected QueryResponseOrderedRelations queryResponseOrderedRelations;
-    protected OrderedRelationsUtilityFunctions utils;
     protected DeclareUtilities declareUtilities;
 
     @Autowired
     public QueryPlanOrderedRelations(DeclareDBConnector declareDBConnector, JavaSparkContext javaSparkContext,
-                                     OrderedRelationsUtilityFunctions utils, DeclareUtilities declareUtilities) {
+                                     DeclareUtilities declareUtilities) {
         this.declareDBConnector = declareDBConnector;
         this.javaSparkContext = javaSparkContext;
-        this.utils = utils;
         this.declareUtilities = declareUtilities;
     }
 
