@@ -20,17 +20,13 @@ import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryWrapper;
 
 import com.datalab.siesta.queryprocessor.storage.model.EventTypeTracePositions;
 import lombok.Setter;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.functions;
 import org.apache.spark.storage.StorageLevel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.RequestScope;
-import scala.Tuple2;
 
 import java.util.*;
 

@@ -2,9 +2,6 @@ package com.datalab.siesta.queryprocessor.declare;
 
 import com.datalab.siesta.queryprocessor.declare.model.EventPairToNumberOfTrace;
 import com.datalab.siesta.queryprocessor.model.DBModel.EventTypes;
-import com.datalab.siesta.queryprocessor.model.Events.Event;
-import com.datalab.siesta.queryprocessor.model.Events.EventPair;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.jvnet.hk2.annotations.Service;

@@ -7,9 +7,7 @@ import com.datalab.siesta.queryprocessor.declare.model.EventPairSupport;
 import com.datalab.siesta.queryprocessor.declare.model.EventPairTraceOccurrences;
 import com.datalab.siesta.queryprocessor.declare.model.EventTypeOccurrences;
 import com.datalab.siesta.queryprocessor.declare.queryResponses.QueryResponseOrderedRelations;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
@@ -17,12 +15,8 @@ import org.apache.spark.sql.functions;
 import org.apache.spark.storage.StorageLevel;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.RequestScope;
-import scala.Tuple2;
-import scala.Tuple3;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Component
 @RequestScope

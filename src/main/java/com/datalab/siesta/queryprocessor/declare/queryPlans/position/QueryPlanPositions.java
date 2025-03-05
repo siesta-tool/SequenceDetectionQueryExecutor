@@ -3,10 +3,7 @@ package com.datalab.siesta.queryprocessor.declare.queryPlans.position;
 import java.util.List;
 
 import com.datalab.siesta.queryprocessor.declare.model.EventSupport;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
@@ -24,7 +21,6 @@ import com.datalab.siesta.queryprocessor.storage.model.Trace;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.QueryPlan;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponse;
 import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryWrapper;
-import scala.Tuple2;
 
 @Component
 @RequestScope
