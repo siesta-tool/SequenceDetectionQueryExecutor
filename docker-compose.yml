@@ -1,7 +1,6 @@
 version: '3.7'
 networks:
-  cluster_net:
-    external: true
+  siesta-net:
     name: siesta-net
 
 services:
@@ -17,24 +16,13 @@ services:
       s3.user: minioadmin
       s3.key: minioadmin
       s3.timeout: 600000
-      #for cassandra
-      cassandra.max_requests_per_local_connection: 32768
-      cassandra.max_requests_per_remote_connection: 22000
-      cassandra.connections_per_host: 1000
-      cassandra.max_queue_size: 1024
-      cassandra.connection_timeout: 30000
-      cassandra.read_timeout: 30000
-      spring.data.cassandra.contact-points: cassandra
-      spring.data.cassandra.port: 9042
-      spring.data.cassandra.user: cassandra
-      spring.data.cassandra.password: cassandra
       server.port: 8090 # port of the application
     volumes:
       - ./build:/root/.m2
     ports:
       - '8090:8090'
     networks:
-      - cluster_net
+      - siesta-net
 
 #  spark-master:
 #    image: bitnami/spark:3.5.4
@@ -76,3 +64,4 @@ services:
 #      - spark-master
 #    networks:
 #      - cluster_net
+

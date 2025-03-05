@@ -39,7 +39,7 @@ import java.util.regex.Pattern;
 public class S3Connector extends SparkDatabaseRepository {
 
 
-    private String bucket = "s3a://siesta/";
+    protected String bucket = "s3a://siesta/";
 
     @Autowired
     public S3Connector(SparkSession sparkSession, JavaSparkContext javaSparkContext, Utils utils) {
