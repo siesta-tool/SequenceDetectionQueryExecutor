@@ -23,6 +23,8 @@ ADD src /code/src
 RUN test -f ${JARS_DIR}/hadoop-aws-3.3.4.jar || wget -P ${JARS_DIR} https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar
 RUN test -f ${JARS_DIR}/aws-java-sdk-bundle-1.12.262.jar || wget -P ${JARS_DIR} https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar
 RUN test -f ${JARS_DIR}/hadoop-client-3.3.4.jar || wget -P ${JARS_DIR} https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-client/3.3.4/hadoop-client-3.3.4.jar
+RUN test -f ${JARS_DIR}/delta-spark_2.12-3.3.0.jar || wget -P ${JARS_DIR} https://repo1.maven.org/maven2/io/delta/delta-spark_2.12/3.3.0/delta-spark_2.12-3.3.0.jar
+RUN test -f ${JARS_DIR}/delta-storage-3.3.0.jar || wget -P ${JARS_DIR} https://repo1.maven.org/maven2/io/delta/delta-storage/3.3.0/delta-storage-3.3.0.jar
 RUN mvn clean compile package -f pom.xml -DskipTests
 
 # Making sure jars are where they should be

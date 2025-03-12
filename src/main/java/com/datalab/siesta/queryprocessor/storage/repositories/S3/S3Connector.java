@@ -19,6 +19,7 @@ import org.apache.spark.sql.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -29,13 +30,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Configuration
-//@ConditionalOnProperty(
-//        value = "database",
-//        havingValue = "s3",
-//        matchIfMissing = true
-//)
-@ConditionalOnExpression("'${database}' == 's3' and '${delta}' == 'false'")
-@Service
+@PropertySource("classpath:application.properties")
+@ConditionalOnExpression("'${database}' == 's3'")
 public class S3Connector extends SparkDatabaseRepository {
 
 
@@ -49,8 +45,31 @@ public class S3Connector extends SparkDatabaseRepository {
 
     @Override
     public Metadata getMetadata(String logname) {
-        Dataset<Row> df = sparkSession.read().parquet(String.format("%s%s%s", bucket, logname, "/meta.parquet/"));
-        return new Metadata(df.toJavaRDD().collect().get(0));
+        Dataset<Row> df = null;
+        boolean parquet = true;
+        try{
+             df = sparkSession.read().parquet(String.format("%s%s%s", bucket, logname, "/meta.parquet/"));
+        }catch (Exception e){
+            try {
+                String path = String.format(String.format("%s%s%s", bucket, logname, "/meta/"));
+                df = sparkSession.read().format("delta").load(path);
+                parquet = false;
+            }catch (Exception e2){
+                return null;
+            }
+        }
+        if(parquet){ //handle metadata from parquets
+            return new Metadata(df.toJavaRDD().collect().get(0));
+        }else{ //handle metadata from delta
+            Map<String, String> metadataMap = new HashMap<>();
+            List<Row> rows = df.collectAsList(); // Collect rows as a list
+            for (Row row : rows) {
+                String key = row.getAs("key");
+                String value = row.getAs("value");
+                metadataMap.put(key, value);
+            }
+            return new Metadata(metadataMap, "delta");
+        }
     }
 
     @Override
@@ -77,8 +96,16 @@ public class S3Connector extends SparkDatabaseRepository {
 
     @Override
     protected Dataset<EventModel> readSequenceTable(String logname){
-        String path = String.format("%s%s%s", bucket, logname, "/seq.parquet/");
-        Dataset<EventModel> eventsDF = sparkSession.read().parquet(path)
+        Dataset<Row> df;
+        try{
+            String path = String.format("%s%s%s", bucket, logname, "/seq.parquet/");
+            df = sparkSession.read().parquet(path);
+        }catch (Exception e){
+            String path = String.format("%s%s%s", bucket, logname, "/seq/");
+            df = sparkSession.read().format("delta").load(path)
+                    .withColumnRenamed("trace","trace_id");
+        }
+        Dataset<EventModel> eventsDF = df
                 .selectExpr(
                         "trace_id as traceId",
                         "event_type as eventName",
@@ -91,8 +118,16 @@ public class S3Connector extends SparkDatabaseRepository {
 
     @Override
     protected Dataset<EventModel> readSingleTable(String logname){
-        String path = String.format("%s%s%s", bucket, logname, "/single.parquet/");
-        Dataset<EventModel> eventsDF = sparkSession.read().parquet(path)
+        Dataset<Row> df;
+        try{
+            String path = String.format("%s%s%s", bucket, logname, "/single.parquet/");
+            df = sparkSession.read().parquet(path);
+        }catch (Exception e){
+            String path = String.format("%s%s%s", bucket, logname, "/single/");
+            df = sparkSession.read().format("delta").load(path)
+                    .withColumnRenamed("trace","trace_id");
+        }
+        Dataset<EventModel> eventsDF = df
                 .selectExpr(
                         "trace_id as traceId",
                         "event_type as eventName",
@@ -105,29 +140,47 @@ public class S3Connector extends SparkDatabaseRepository {
 
     @Override
     protected Dataset<Count> readCountTable(String logname){
-        String path = String.format("%s%s%s", bucket, logname, "/count.parquet/");
-        Dataset<Row> df = sparkSession.read().parquet(path);
-        Dataset<Row> explodedDf = df
-                .withColumn("countRecord", functions.explode(
-                        df.col("times")))
-                .select(
-                        df.col("eventA"),
-                        functions.col("countRecord._1").alias("eventB"),
-                        functions.col("countRecord._2").alias("sumDuration"),
-                        functions.col("countRecord._3").alias("count"),
-                        functions.col("countRecord._4").alias("minDuration"),
-                        functions.col("countRecord._5").alias("maxDuration"),
-                        functions.col("countRecord._6").alias("sumSquares")
-                );
-        Dataset<Count> counts = explodedDf.as(Encoders.bean(Count.class));
+        Dataset<Row> df;
+
+        try{
+            String path = String.format("%s%s%s", bucket, logname, "/count.parquet/");
+            df = sparkSession.read().parquet(path)
+                    .withColumn("countRecord", functions.explode(
+                            functions.col("times")))
+                    .select(
+                            functions.col("eventA"),
+                            functions.col("countRecord._1").alias("eventB"),
+                            functions.col("countRecord._2").alias("sumDuration"),
+                            functions.col("countRecord._3").alias("count"),
+                            functions.col("countRecord._4").alias("minDuration"),
+                            functions.col("countRecord._5").alias("maxDuration"),
+                            functions.col("countRecord._6").alias("sumSquares")
+                    );
+        }catch (Exception e){
+            String path = String.format("%s%s%s", bucket, logname, "/count/");
+            df = sparkSession.read().format("delta").load(path)
+                    .withColumnRenamed("sum_duration","sumDuration")
+                    .withColumnRenamed("min_duration","minDuration")
+                    .withColumnRenamed("max_duration","maxDuration")
+                    .withColumnRenamed("sum_squares","sumSquares");
+        }
+        Dataset<Count> counts = df.as(Encoders.bean(Count.class));
         return counts;
     }
 
     protected Dataset<IndexPair> readIndexTable(String logname) {
-        String path = String.format("%s%s%s", bucket, logname, "/index.parquet/");
-        Dataset<Row> indexRecords = sparkSession.read()
-                .parquet(path);
-        Dataset<IndexPair> fixMissingFields = super.transformToIndexPairSet(indexRecords)
+        Dataset<Row> df;
+        try{
+            String path = String.format("%s%s%s", bucket, logname, "/index.parquet/");
+            df = sparkSession.read().parquet(path);
+        }catch (Exception e){
+            String path = String.format("%s%s%s", bucket, logname, "/index/");
+            df = sparkSession.read().format("delta").load(path)
+                    .withColumnRenamed("id","trace_id")
+                    .withColumn("timestampA",functions.col("timeA").cast("string"))
+                    .withColumn("timestampB",functions.col("timeB").cast("string"));
+        }
+        Dataset<IndexPair> fixMissingFields = super.transformToIndexPairSet(df)
                 .as(Encoders.bean(IndexPair.class));
         return fixMissingFields;
     }
