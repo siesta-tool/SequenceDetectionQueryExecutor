@@ -32,9 +32,9 @@ public class TimeConstraint extends Constraint implements Cloneable, Serializabl
 
     public boolean isConstraintHolds(Count c) {
         if (method.equals("within")) {
-            return c.getMin_duration() <= this.getConstraintInSeconds();
+            return c.getMinDuration() <= this.getConstraintInSeconds();
         } else if (method.equals("atleast")) {
-            return this.getConstraintInSeconds() <= c.getMax_duration();
+            return this.getConstraintInSeconds() <= c.getMaxDuration();
         } else return false;
     }
 

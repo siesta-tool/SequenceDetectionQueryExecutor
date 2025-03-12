@@ -18,16 +18,15 @@ import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.QueryPlan;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponse;
 import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryWrapper;
 
+import com.datalab.siesta.queryprocessor.storage.model.EventTypeTracePositions;
 import lombok.Setter;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.broadcast.Broadcast;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.functions;
 import org.apache.spark.storage.StorageLevel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.RequestScope;
-import scala.Tuple2;
 
 import java.util.*;
 
@@ -72,51 +71,47 @@ public class QueryPlanDeclareAll implements QueryPlan {
 		// run existences
 		this.queryPlanExistences.setMetadata(metadata);
 		this.queryPlanExistences.initResponse();
-		Broadcast<Double> bSupport = javaSparkContext.broadcast(support);
-		Broadcast<Long> bTotalTraces = javaSparkContext.broadcast(metadata.getTraces());
 
 		// if existence, absence or exactly in modes
-		JavaRDD<UniqueTracesPerEventType> uEventType = declareDBConnector
+		Dataset<UniqueTracesPerEventType> uEventType = declareDBConnector
 				.querySingleTableDeclare(this.metadata.getLogname());
 		uEventType.persist(StorageLevel.MEMORY_AND_DISK());
 		Map<String, HashMap<Integer, Long>> groupTimes = this.queryPlanExistences.createMapForSingle(uEventType);
 		Map<String, Long> singleUnique = this.queryPlanExistences.extractUniqueTracesSingle(groupTimes);
-		Broadcast<Map<String, Long>> bUniqueSingle = javaSparkContext.broadcast(singleUnique);
 
-		JavaRDD<UniqueTracesPerEventPair> uPairs = declareDBConnector
+		Dataset<UniqueTracesPerEventPair> uPairs = declareDBConnector
 				.queryIndexTableDeclare(this.metadata.getLogname());
-		JavaRDD<EventPairToNumberOfTrace> joined = this.queryPlanExistences.joinUnionTraces(uPairs);
+		Dataset<EventPairToNumberOfTrace> joined = this.queryPlanExistences.joinUnionTraces(uPairs);
 		QueryResponseExistence queryResponseExistence = this.queryPlanExistences.runAll(groupTimes, support, joined,
-				bSupport, bTotalTraces, bUniqueSingle, uEventType);
+				metadata.getTraces(), singleUnique, uEventType);
 		uEventType.unpersist();
 
 		// create joined table for order relations
 		// load data from query table
-		JavaRDD<EventPairToTrace> indexRDD = declareDBConnector.queryIndexOriginalDeclare(this.metadata.getLogname())
-				.filter(x -> !x.getEventA().equals(x.getEventB()));
-
-		JavaPairRDD<Tuple2<String, String>, List<Integer>> singleRDD = declareDBConnector
+		Dataset<EventPairToTrace> indexRDD = declareDBConnector.queryIndexOriginalDeclare(this.metadata.getLogname())
+				.filter(functions.col("eventA").notEqual(functions.col("eventB")));
+//
+		Dataset<EventTypeTracePositions> singleRDD = declareDBConnector
 				.querySingleTableAllDeclare(this.metadata.getLogname());
 		singleRDD.persist(StorageLevel.MEMORY_AND_DISK());
-
+//
 		this.queryPlanOrderedRelations.initQueryResponse();
 		this.queryPlanOrderedRelations.setMetadata(metadata);
 		// join records from single table with records from the index table
-		JavaRDD<EventPairTraceOccurrences> joinedOrder = this.queryPlanOrderedRelations.joinTables(indexRDD, singleRDD);
+		Dataset<EventPairTraceOccurrences> joinedOrder = this.queryPlanOrderedRelations.joinTables(indexRDD, singleRDD);
 		joinedOrder.persist(StorageLevel.MEMORY_AND_DISK());
 		singleRDD.unpersist();
-		// extract simple ordered
-		JavaRDD<Abstract2OrderConstraint> cSimple = this.queryPlanOrderedRelations.evaluateConstraint(joinedOrder,
-				"succession");
+//		 extract simple ordered
+		Dataset<Abstract2OrderConstraint> cSimple = this.queryPlanOrderedRelations.evaluateConstraint(joinedOrder);
 		cSimple.persist(StorageLevel.MEMORY_AND_DISK());
 		// extract additional information required for pruning
-		Map<String, Long> uEventType2 = declareDBConnector.extractTotalOccurrencesPerEventType(this.metadata.getLogname());
-		Broadcast<Map<String, Long>> bUEventTypes = javaSparkContext.broadcast(uEventType2);
+		Dataset<EventTypeOccurrences> uEventType2 = declareDBConnector
+				.extractTotalOccurrencesPerEventType(this.metadata.getLogname());
 		// extract no-succession constraints from event pairs that do not exist in the
 		// database log
 		this.queryPlanOrderedRelations.extendNotSuccession(uEventType2, this.metadata.getLogname(), cSimple);
 		// filter based on support
-		this.queryPlanOrderedRelations.filterBasedOnSupport(cSimple, bUEventTypes, support);
+		this.queryPlanOrderedRelations.filterBasedOnSupport(cSimple, uEventType2, support);
 		// load extracted constraints to the response
 		QueryResponseOrderedRelations qSimple = this.queryPlanOrderedRelations.getQueryResponseOrderedRelations();
 		cSimple.unpersist();
@@ -124,24 +119,23 @@ public class QueryPlanDeclareAll implements QueryPlan {
 		// similar process to extract alternate ordered
 		this.queryPlanOrderedRelationsAlternate.initQueryResponse();
 		this.queryPlanOrderedRelationsAlternate.setMetadata(metadata);
-		JavaRDD<Abstract2OrderConstraint> cAlternate = this.queryPlanOrderedRelationsAlternate
-				.evaluateConstraint(joinedOrder, "succession");
-		this.queryPlanOrderedRelationsAlternate.filterBasedOnSupport(cAlternate, bUEventTypes, support);
+		Dataset<Abstract2OrderConstraint> cAlternate = this.queryPlanOrderedRelationsAlternate
+				.evaluateConstraint(joinedOrder);
+		this.queryPlanOrderedRelationsAlternate.filterBasedOnSupport(cAlternate, uEventType2, support);
 		QueryResponseOrderedRelations qAlternate = this.queryPlanOrderedRelationsAlternate
 				.getQueryResponseOrderedRelations();
 
 		// similar process to extract chain ordered
 		this.queryPlanOrderedRelationsChain.initQueryResponse();
 		this.queryPlanOrderedRelationsChain.setMetadata(metadata);
-		JavaRDD<Abstract2OrderConstraint> cChain = this.queryPlanOrderedRelationsChain.evaluateConstraint(joinedOrder,
-				"succession");
+		Dataset<Abstract2OrderConstraint> cChain = this.queryPlanOrderedRelationsChain.evaluateConstraint(joinedOrder);
 		cChain.persist(StorageLevel.MEMORY_AND_DISK());
 		this.queryPlanOrderedRelationsChain.extendNotSuccession(uEventType2, this.metadata.getLogname(), cChain);
-		this.queryPlanOrderedRelationsChain.filterBasedOnSupport(cChain, bUEventTypes, support);
+		this.queryPlanOrderedRelationsChain.filterBasedOnSupport(cChain, uEventType2, support);
 		QueryResponseOrderedRelations qChain = this.queryPlanOrderedRelationsChain.getQueryResponseOrderedRelations();
 		cChain.unpersist();
 		joinedOrder.unpersist();
-		// combine all responses
+//		// combine all responses
 		QueryResponseDeclareAll queryResponseAll = new QueryResponseDeclareAll(queryResponseExistence, queryResponsePosition, qSimple,
 				qAlternate, qChain);
 		return queryResponseAll;
