@@ -2,7 +2,7 @@
 target/classes/*
 target/test-classes/*
 target/*
-src/main/resources/lib/*.jar
+src/main/resources/jars/*.jar
 siesta-query-processor.iml
 experiments/*
 

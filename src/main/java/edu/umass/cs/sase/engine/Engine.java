@@ -982,7 +982,7 @@ public class Engine {
         }
         //check if next state is Kleene*. In that case two runs needs to be added, one that will wait for it to
         //have a next event and the other that will consider it finished
-        if (this.nfa.getStates(1).getStateType().equalsIgnoreCase("kleeneClosure*")) {
+        if (this.nfa.getSize()>1 && this.nfa.getStates(1).getStateType().equalsIgnoreCase("kleeneClosure*")) {
             Run newRun2 = this.engineRunController.getRun();
             newRun2.initializeRun(this.nfa);
             newRun2.addEvent(e); //may need to add to buffer

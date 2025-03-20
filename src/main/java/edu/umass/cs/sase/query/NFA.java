@@ -503,12 +503,6 @@ public class NFA {
     }
 
     public State getStates(int order) {
-        // for debug
-		/*
-		if(order == 3){
-			System.out.println();
-		}
-		*/
         return states[order];
     }
 
