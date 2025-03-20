@@ -1,0 +1,79 @@
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='I'}], constraints=[]}
+
+---------------------
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='C'}], constraints=[]}
+C C K K I I 
+---------------------
+Proposition: C 1
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='G'}], constraints=[]}
+G K I 
+---------------------
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='K'}], constraints=[]}
+K K I 
+---------------------
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='E'}], constraints=[]}
+E K I 
+---------------------
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='F'}], constraints=[]}
+F F K K I I 
+---------------------
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='B'}], constraints=[]}
+B K K B I I 
+---------------------
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='A'}], constraints=[]}
+K A I 
+---------------------
+Proposition: A 1
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='H'}], constraints=[]}
+
+---------------------
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='J'}], constraints=[]}
+J K I 
+---------------------
+Proposition: J 1
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='D'}], constraints=[]}
+D K I 
+---------------------
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='L'}], constraints=[]}
+L K K I L I 
+---------------------
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='I'}], constraints=[]}
+
+---------------------
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='C'}], constraints=[]}
+C C K K I I 
+---------------------
+Proposition: C 1
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='G'}], constraints=[]}
+G K I 
+---------------------
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='K'}], constraints=[]}
+K K I 
+---------------------
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='E'}], constraints=[]}
+E K I 
+---------------------
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='F'}], constraints=[]}
+F F K K I I 
+---------------------
+Proposition: F 1
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='B'}], constraints=[]}
+B K K B I I 
+---------------------
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='A'}], constraints=[]}
+K A I 
+---------------------
+Proposition: A 1
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='H'}], constraints=[]}
+
+---------------------
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='J'}], constraints=[]}
+J K I 
+---------------------
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='D'}], constraints=[]}
+D K I 
+---------------------
+Pattern: SimplePattern{events=[Event{name='K'}, Event{name='I'}, Event{name='L'}], constraints=[]}
+L K K I L I 
+---------------------
+Proposition: L 1

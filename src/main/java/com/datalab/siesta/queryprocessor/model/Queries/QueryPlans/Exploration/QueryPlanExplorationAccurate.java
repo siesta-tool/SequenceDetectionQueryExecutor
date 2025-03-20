@@ -25,6 +25,7 @@ import scala.Tuple2;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -35,10 +36,12 @@ import java.util.stream.Collectors;
 @RequestScope
 public class QueryPlanExplorationAccurate extends QueryPlanPatternDetection implements QueryPlan {
 
+    protected HashMap<String, List<String>> calculatedPairs;
 
     @Autowired
     public QueryPlanExplorationAccurate(DBConnector dbConnector, SaseConnector saseConnector, Utils utils) {
         super(dbConnector, saseConnector, utils);
+        this.calculatedPairs = new HashMap<>();
     }
 
     /**

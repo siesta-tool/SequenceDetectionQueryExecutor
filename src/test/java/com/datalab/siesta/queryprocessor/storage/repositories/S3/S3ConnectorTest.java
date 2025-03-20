@@ -56,24 +56,24 @@ class S3ConnectorTest {
         Map<EventTypes,List<IndexPair>> r =  ir.getRecords();
         // <B,A>
         Assertions.assertEquals(2,r.get(new EventTypes("B","A")).size());
-        List<String> contained =  r.get(new EventTypes("C","B")).stream().map(IndexPair::getTraceId).collect(Collectors.toList());
+        List<String> contained =  r.get(new EventTypes("C","B")).stream().map(IndexPair::getTrace_id).collect(Collectors.toList());
         Assertions.assertTrue(contained.contains(2L));
         // <C,B>
         Assertions.assertEquals(2,r.get(new EventTypes("C","B")).size());
         contained.clear();
-        contained =  r.get(new EventTypes("C","B")).stream().map(IndexPair::getTraceId).collect(Collectors.toList());
+        contained =  r.get(new EventTypes("C","B")).stream().map(IndexPair::getTrace_id).collect(Collectors.toList());
         Assertions.assertTrue(contained.contains(2L));
         Assertions.assertTrue(contained.contains(3L));
         // <C,C>
         Assertions.assertEquals(2,r.get(new EventTypes("C","C")).size());
         contained.clear();
-        contained =  r.get(new EventTypes("C","C")).stream().map(IndexPair::getTraceId).collect(Collectors.toList());
+        contained =  r.get(new EventTypes("C","C")).stream().map(IndexPair::getTrace_id).collect(Collectors.toList());
         Assertions.assertTrue(contained.contains(2L));
         Assertions.assertTrue(contained.contains(3L));
         // <A,A>
         Assertions.assertEquals(6,r.get(new EventTypes("A","A")).size());
         contained.clear();
-        contained =  r.get(new EventTypes("A","A")).stream().map(IndexPair::getTraceId).collect(Collectors.toList());
+        contained =  r.get(new EventTypes("A","A")).stream().map(IndexPair::getTrace_id).collect(Collectors.toList());
         Assertions.assertTrue(contained.contains(2L));
         Assertions.assertTrue(contained.contains(3L));
         Assertions.assertTrue(contained.contains(1L));
@@ -81,21 +81,21 @@ class S3ConnectorTest {
         // <A,B>
         Assertions.assertEquals(5,r.get(new EventTypes("A","B")).size());
         contained.clear();
-        contained =  r.get(new EventTypes("A","B")).stream().map(IndexPair::getTraceId).collect(Collectors.toList());
+        contained =  r.get(new EventTypes("A","B")).stream().map(IndexPair::getTrace_id).collect(Collectors.toList());
         Assertions.assertTrue(contained.contains(2L));
         Assertions.assertTrue(contained.contains(3L));
         Assertions.assertTrue(contained.contains(1L));
         // <B,C>
         Assertions.assertEquals(5,r.get(new EventTypes("B","C")).size());
         contained.clear();
-        contained =  r.get(new EventTypes("B","C")).stream().map(IndexPair::getTraceId).collect(Collectors.toList());
+        contained =  r.get(new EventTypes("B","C")).stream().map(IndexPair::getTrace_id).collect(Collectors.toList());
         Assertions.assertTrue(contained.contains(2L));
         Assertions.assertTrue(contained.contains(3L));
         Assertions.assertTrue(contained.contains(1L));
         // <A,C>
         Assertions.assertEquals(5,r.get(new EventTypes("A","C")).size());
         contained.clear();
-        contained =  r.get(new EventTypes("A","C")).stream().map(IndexPair::getTraceId).collect(Collectors.toList());
+        contained =  r.get(new EventTypes("A","C")).stream().map(IndexPair::getTrace_id).collect(Collectors.toList());
         Assertions.assertTrue(contained.contains(2L));
         Assertions.assertTrue(contained.contains(3L));
         Assertions.assertTrue(contained.contains(1L));
@@ -103,13 +103,13 @@ class S3ConnectorTest {
         // <C,A>
         Assertions.assertEquals(2,r.get(new EventTypes("C","A")).size());
         contained.clear();
-        contained =  r.get(new EventTypes("C","A")).stream().map(IndexPair::getTraceId).collect(Collectors.toList());
+        contained =  r.get(new EventTypes("C","A")).stream().map(IndexPair::getTrace_id).collect(Collectors.toList());
         Assertions.assertTrue(contained.contains(2L));
         Assertions.assertTrue(contained.contains(4L));
         // <B,B>
         Assertions.assertEquals(3,r.get(new EventTypes("B","B")).size());
         contained.clear();
-        contained =  r.get(new EventTypes("B","B")).stream().map(IndexPair::getTraceId).collect(Collectors.toList());
+        contained =  r.get(new EventTypes("B","B")).stream().map(IndexPair::getTrace_id).collect(Collectors.toList());
         Assertions.assertTrue(contained.contains(2L));
         Assertions.assertTrue(contained.contains(3L));
     }

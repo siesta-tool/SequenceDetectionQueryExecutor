@@ -11,18 +11,15 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 
+import java.io.File;
+
 /**
  * Contains the configuration of spark in he.maven.plugins:maven-compiler-plugin:3.13.0:compile (default-compile) on project siesta-query-processor: Fatal error compiling: error: release version 17 not supported -> [Help 1]
-order to connect to s3 database
+ * order to connect to s3 database
  */
 @Configuration
 @PropertySource("classpath:application.properties")
-//@ConditionalOnProperty(
-//        value = "database",
-//        havingValue = "s3",
-//        matchIfMissing = true
-//)
-@ConditionalOnExpression("'${database}' == 's3' and '${delta}' == 'false'")
+@ConditionalOnExpression("'${database}' == 's3'")
 public class SparkConfiguration {
 
     @Value("${app.name:siesta2}")
@@ -45,16 +42,22 @@ public class SparkConfiguration {
 
     @Bean
     public SparkConf sparkConf() {
+        String jarPath = new File("src/main/resources/jars").getAbsolutePath();
+
         return new SparkConf()
                 .setAppName(appName)
                 .setMaster(masterUri)
                 .set("spark.driver.extraJavaOptions", "--add-opens java.base/sun.security.action=ALL-UNNAMED")
                 .set("spark.executor.extraJavaOptions", "--add-opens java.base/sun.security.action=ALL-UNNAMED")
-//                .set("spark.driver.memory","25g")
-//                .set("spark.driver.memoryOverhead","2g")
-//                .set("spark.memory.fraction","0.8")
-//                .set("spark.memory.storageFraction","0.5")
-                .set("spark.driver.maxResultSize","5g");
+                .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+                .set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+                .set("spark.sql.streaming.statefulOperator.checkCorrectness.enabled", "false")
+                .set("spark.jars", jarPath + "/hadoop-aws-3.3.4.jar,"
+                        + jarPath + "/aws-java-sdk-bundle-1.12.262.jar,"
+                        + jarPath + "/hadoop-client-3.3.4.jar,"
+                        + jarPath + "/delta-spark_2.12-3.3.0.jar,"
+                        + jarPath + "/delta-storage-3.3.0.jar")
+                .set("spark.driver.maxResultSize", "5g");
     }
 
     @Bean
@@ -64,10 +67,10 @@ public class SparkConfiguration {
 
     @Bean
     public SparkSession sparkSession() {
-        SparkSession spark= SparkSession
+        SparkSession spark = SparkSession
                 .builder()
                 .sparkContext(this.javaSparkContext().sc())
-                .appName("siesta 2")
+                .appName("SIESTA Query")
                 .getOrCreate();
         spark.sparkContext().hadoopConfiguration().set("fs.s3a.endpoint", s3endpoint);
         spark.sparkContext().hadoopConfiguration().set("fs.s3a.access.key", s3user);
@@ -78,7 +81,9 @@ public class SparkConfiguration {
         spark.sparkContext().hadoopConfiguration().set("fs.s3a.connection.ssl.enabled", "true");
         spark.sparkContext().hadoopConfiguration().set("fs.s3a.bucket.create.enabled", "true");
         spark.conf().set("spark.sql.sources.partitionOverwriteMode", "dynamic");
-//        spark.conf().set("spark.executor.memory", "30g");
+        spark.conf().set("spark.sql.files.metadata.log.parsing.enabled", "true");
+        spark.conf().set("spark.sql.sources.useV1SourceList", "delta");
+        spark.conf().set("spark.delta.logStore.class", "org.apache.spark.sql.delta.storage.S3SingleDriverLogStore");
         return spark;
     }
 

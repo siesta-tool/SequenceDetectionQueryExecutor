@@ -125,29 +125,6 @@ public class DBConnector {
     }
 
     /**
-     * Retrieves all the events from specific traces in the SequenceTable
-     * @param logname the log database
-     * @param traceIds the ids of the traces that will be retrieved
-     * @return a map where the key is the trace id and the value is a list of the retrieved events (with their
-     *      * timestamps)
-     */
-    public Map<String, List<EventBoth>> querySeqTable(String logname, List<String> traceIds) {
-        return db.querySeqTable(logname, traceIds);
-    }
-
-    /**
-     * Retrieves the appropriate events from the SingleTable, which contains the single inverted index
-     *
-     * @param logname    the log database
-     * @param traceIds   the ids of the traces that wil be retrieved
-     * @param eventTypes the events that will we retrieved
-     * @return a list of all the retrieved events (wth their timestamps)
-     */
-    public List<EventBoth> querySingleTable(String logname, Set<String> traceIds, Set<String> eventTypes) {
-        return db.querySingleTable(logname, traceIds, eventTypes);
-    }
-
-    /**
      * Retrieves event from the SingleTable and group them based on the traceID
      * @param logname the log database
      * @param eventTypes the eventTypes that we want to retrieve

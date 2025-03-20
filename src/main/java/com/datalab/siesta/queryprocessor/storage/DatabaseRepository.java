@@ -11,15 +11,13 @@ import com.datalab.siesta.queryprocessor.declare.model.declareState.PositionStat
 import com.datalab.siesta.queryprocessor.declare.model.declareState.UnorderStateI;
 import com.datalab.siesta.queryprocessor.declare.model.declareState.UnorderStateU;
 import com.datalab.siesta.queryprocessor.model.DBModel.*;
-import com.datalab.siesta.queryprocessor.model.Events.Event;
 import com.datalab.siesta.queryprocessor.model.Events.EventBoth;
 import com.datalab.siesta.queryprocessor.model.Events.EventPair;
-import com.datalab.siesta.queryprocessor.model.Events.EventPos;
 import com.datalab.siesta.queryprocessor.model.ExtractedPairsForPatternDetection;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
+import com.datalab.siesta.queryprocessor.storage.model.EventTypeTracePositions;
+import com.datalab.siesta.queryprocessor.storage.model.Trace;
+import org.apache.spark.sql.Dataset;
 import scala.Tuple2;
-import scala.Tuple3;
 
 import java.sql.Timestamp;
 import java.util.List;
@@ -104,14 +102,6 @@ public interface DatabaseRepository {
      */
     IndexMiddleResult patterDetectionTraceIds(String logname, List<Tuple2<EventPair, Count>> combined, Metadata metadata, ExtractedPairsForPatternDetection pairs, Timestamp from, Timestamp till);
 
-    /**
-     * Retrieves data from the primary inverted index
-     * @param pairs a set of the pairs that we need to retrieve information for
-     * @param logname the log database
-     * @return the corresponding records from the index
-     */
-    IndexRecords queryIndexTable(Set<EventPair> pairs, String logname);
-
    /**
      * Retrieves data from the primary inverted index
      * @param pairs a set of the pairs that we need to retrieve information for
@@ -162,27 +152,25 @@ public interface DatabaseRepository {
 
 
     // Below are for Declare //
-    JavaRDD<Trace> querySequenceTableDeclare(String logname);
+    Dataset<Trace> querySequenceTableDeclare(String logname);
 
-    JavaRDD<UniqueTracesPerEventType> querySingleTableDeclare(String logname);
+    Dataset<UniqueTracesPerEventType> querySingleTableDeclare(String logname);
 
-    JavaRDD<EventSupport> querySingleTable(String logname);
+    Dataset<EventSupport> querySingleTable(String logname);
 
-    JavaRDD<UniqueTracesPerEventPair> queryIndexTableDeclare(String logname);
+    Dataset<UniqueTracesPerEventPair> queryIndexTableDeclare(String logname);
 
-    JavaRDD<IndexPair> queryIndexTableAllDeclare(String logname);
+    Dataset<EventTypeTracePositions> querySingleTableAllDeclare(String logname);
 
-    JavaPairRDD<Tuple2<String,String>, List<Integer>> querySingleTableAllDeclare(String logname);
-
-    JavaRDD<EventPairToTrace> queryIndexOriginalDeclare(String logname);
+    Dataset<EventPairToTrace> queryIndexOriginalDeclare(String logname);
 
     //Below are for the states of Declare
-    JavaRDD<PositionState> queryPositionState(String logname);
-    JavaRDD<ExistenceState> queryExistenceState(String logname);
-    JavaRDD<UnorderStateI> queryUnorderStateI(String logname);
-    JavaRDD<UnorderStateU> queryUnorderStateU(String logname);
-    JavaRDD<OrderState> queryOrderState(String logname);
-    JavaRDD<NegativeState> queryNegativeState(String logname);
+    Dataset<PositionState> queryPositionState(String logname);
+    Dataset<ExistenceState> queryExistenceState(String logname);
+    Dataset<UnorderStateI> queryUnorderStateI(String logname);
+    Dataset<UnorderStateU> queryUnorderStateU(String logname);
+    Dataset<OrderState> queryOrderState(String logname);
+    Dataset<NegativeState> queryNegativeState(String logname);
 
 
 }

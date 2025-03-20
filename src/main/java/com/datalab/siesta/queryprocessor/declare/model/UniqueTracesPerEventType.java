@@ -19,7 +19,7 @@ import java.util.List;
 @Getter
 @Setter
 public class UniqueTracesPerEventType implements Serializable {
-    private String eventType;
+    private String eventName;
     private List<OccurrencesPerTrace> occurrences;
 
 
@@ -31,10 +31,10 @@ public class UniqueTracesPerEventType implements Serializable {
     public HashMap<Integer,Long> groupTimes(){
         HashMap<Integer,Long> groups = new HashMap<>();
         this.occurrences.forEach(x->{
-            if(groups.containsKey(x.getOccurrences())){
-                groups.put(x.getOccurrences(),groups.get(x.getOccurrences())+1L);
+            if(groups.containsKey(x.getOccs())){
+                groups.put(x.getOccs(),groups.get(x.getOccs())+1L);
             }else{
-                groups.put(x.getOccurrences(),1L);
+                groups.put(x.getOccs(),1L);
             }
         });
         return groups;
