@@ -423,7 +423,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         List<EventBoth> response = data.collectAsList()
                 .parallelStream().map(x -> new EventBoth(x.getEventName(),
                         x.getTraceId(), Timestamp.valueOf(x.getTimestamp()), x.getPosition()))
-                .toList();
+                .collect(Collectors.toList());
         return response;
     }
 

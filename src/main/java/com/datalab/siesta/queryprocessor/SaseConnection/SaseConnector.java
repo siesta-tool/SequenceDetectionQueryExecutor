@@ -132,10 +132,18 @@ public class SaseConnector {
                 Occurrences ocs = new Occurrences();
                 ocs.setTraceID(e.getKey());
                 for (Match m : ec.getMatches()) {
-                    ocs.addOccurrence(new Occurrence(Arrays.stream(m.getEvents()).parallel()
-                            .map(x -> (SaseEvent) x)
-                            .map(SaseEvent::getEventBoth)
-                            .collect(Collectors.toList())));
+                    List<EventBoth> eventBothList = new ArrayList<>();
+                    try {
+                        for (edu.umass.cs.sase.stream.Event event : m.getEvents()) {
+                            SaseEvent sEvent = (SaseEvent) event;
+                            EventBoth both = sEvent.getEventBoth();
+                            eventBothList.add(both);
+                        }
+                        Occurrence oc = new Occurrence(eventBothList);
+                        ocs.addOccurrence(oc);
+                    }catch (Exception ignored){
+
+                    }
                 }
                 occurrences.add(ocs);
             }
