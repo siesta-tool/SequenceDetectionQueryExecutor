@@ -58,15 +58,17 @@ public class Occurrences {
     public void clearOccurrences(boolean returnAll) { //here we can determine different selection policies
         List<Occurrence> response = new ArrayList<>() {
             {
-                Occurrence e = occurrences.get(0);
-                if (occurrences.size()>1){
-                    for (int i=1;i<occurrences.size();i++){ //add the occurrence with the largest size
-                        if(occurrences.get(i).getOccurrence().size()>e.getOccurrence().size()){
-                            e=occurrences.get(i);
+                if (!occurrences.isEmpty()) {
+                    Occurrence e = occurrences.get(0);
+                    if (occurrences.size() > 1) {
+                        for (int i = 1; i < occurrences.size(); i++) { //add the occurrence with the largest size
+                            if (occurrences.get(i).getOccurrence().size() > e.getOccurrence().size()) {
+                                e = occurrences.get(i);
+                            }
                         }
                     }
+                    add(e);
                 }
-                add(e);
             }
         };
         if (!returnAll) { //return the one occurrence with the largest size (that is if Kleene* or Kleene+ was used)
