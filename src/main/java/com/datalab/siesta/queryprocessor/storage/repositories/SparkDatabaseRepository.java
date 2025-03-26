@@ -6,10 +6,7 @@ import com.datalab.siesta.queryprocessor.model.Events.*;
 import com.datalab.siesta.queryprocessor.model.ExtractedPairsForPatternDetection;
 import com.datalab.siesta.queryprocessor.model.Utils.Utils;
 import com.datalab.siesta.queryprocessor.storage.DatabaseRepository;
-import com.datalab.siesta.queryprocessor.storage.model.EventModel;
-import com.datalab.siesta.queryprocessor.storage.model.EventTypeTracePositions;
-import com.datalab.siesta.queryprocessor.storage.model.GroupEvents;
-import com.datalab.siesta.queryprocessor.storage.model.Trace;
+import com.datalab.siesta.queryprocessor.storage.model.*;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.types.DataTypes;
@@ -49,7 +46,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
      * @param logname the log database
      * @return all events in the SequenceTable
      */
-    protected Dataset<EventModel> readSequenceTable(String logname) {
+    protected Dataset<EventModelAttributes> readSequenceTable(String logname) {
         return null;
     }
 
@@ -135,7 +132,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
      */
     @Override
     public Map<String, List<EventBoth>> querySeqTable(String logname, List<String> traceIds) {
-        Dataset<EventModel> eventsDF = this.readSequenceTable(logname)
+        Dataset<EventModelAttributes> eventsDF = this.readSequenceTable(logname)
                 .filter(functions.col("traceId").isin(traceIds.toArray()));
         return this.transformEventModelToMap(eventsDF.toDF());
     }
@@ -154,7 +151,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
     @Override
     public Map<String, List<EventBoth>> querySeqTable(String logname, List<String> traceIds, Set<String> eventTypes,
                                                       Timestamp from, Timestamp till) {
-        Dataset<EventModel> eventsDF = this.readSequenceTable(logname);
+        Dataset<EventModelAttributes> eventsDF = this.readSequenceTable(logname);
         //filter based on id and based on eventType
         eventsDF = eventsDF.filter(functions.col("traceId").isin(traceIds.toArray()))
                 .filter(functions.col("eventName").isin(eventTypes.toArray()));
@@ -168,7 +165,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
             filteredTimestamps = filteredTimestamps.filter(functions.col("timestamp-true").leq(till));
         }
 
-        return this.transformEventModelToMap(filteredTimestamps);
+        return this.transformEventModelAttributesToMap(filteredTimestamps);
     }
 
     /**
@@ -187,6 +184,19 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         Map<String, List<EventBoth>> response = eventsList.parallelStream()
                 .map(x ->
                         new EventBoth(x.getEventName(), x.getTraceId(), Timestamp.valueOf(x.getTimestamp()), x.getPosition()))
+                .collect(Collectors.groupingByConcurrent(EventBoth::getTraceID));
+        return response;
+    }
+
+    private Map<String, List<EventBoth>> transformEventModelAttributesToMap(Dataset<Row> events) {
+        List<EventModelAttributes> eventsList = events
+                .select("traceId", "eventName", "timestamp", "position", "attributes")
+                .as(Encoders.bean(EventModelAttributes.class))
+                .collectAsList();
+
+        Map<String, List<EventBoth>> response = eventsList.parallelStream()
+                .map(x ->
+                        new EventBoth(x.getEventName(), x.getTraceId(), Timestamp.valueOf(x.getTimestamp()), x.getPosition(), x.getAttributes()))
                 .collect(Collectors.groupingByConcurrent(EventBoth::getTraceID));
         return response;
     }
@@ -630,11 +640,11 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
     //Below are for Declare//
     @Override
     public Dataset<Trace> querySequenceTableDeclare(String logname) {
-        Dataset<EventModel> eventDF = this.readSequenceTable(logname);
+        Dataset<EventModelAttributes> eventDF = this.readSequenceTable(logname);
         Dataset<Trace> groupedDF = eventDF
                 .groupBy("traceId")// Group by trace_id and collect events into a list
                 .agg(functions.collect_list(functions
-                                .struct("eventName", "traceID", "timestamp", "position"))
+                                .struct("eventName", "traceID", "timestamp", "position", "attributes"))
                         .alias("events"))
                 .as(Encoders.bean(Trace.class));
         return groupedDF;

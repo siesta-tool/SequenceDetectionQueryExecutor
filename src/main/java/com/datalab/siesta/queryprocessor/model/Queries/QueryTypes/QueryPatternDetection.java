@@ -2,11 +2,8 @@ package com.datalab.siesta.queryprocessor.model.Queries.QueryTypes;
 
 import com.datalab.siesta.queryprocessor.model.DBModel.Metadata;
 import com.datalab.siesta.queryprocessor.model.ExtractedPairsForPatternDetection;
-import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.Detection.QueryPlanPatternDetectionSingle;
+import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.Detection.*;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.QueryPlan;
-import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.Detection.QueryPlanPatternDetection;
-import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.Detection.QueryPlanPatternDetectionGroups;
-import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.Detection.QueryPlanWhyNotMatch;
 import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryPatternDetectionWrapper;
 import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryWrapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,15 +28,18 @@ public class QueryPatternDetection implements Query {
     private final QueryPlanPatternDetectionGroups qppdg;
     private final QueryPlanWhyNotMatch planWhyNotMatch;
     private final QueryPlanPatternDetectionSingle qpds;
+    private final QueryPlanPatternDetectionAttributes qpda;
 
     @Autowired
     public QueryPatternDetection(@Qualifier("queryPlanPatternDetection") QueryPlanPatternDetection qppd,
                                  @Qualifier("queryPlanPatternDetectionGroups") QueryPlanPatternDetectionGroups qppdg,
                                  @Qualifier("queryPlanPatternDetectionSingle") QueryPlanPatternDetectionSingle qpds,
+                                 @Qualifier("queryPlanPatternDetectionAttributes") QueryPlanPatternDetectionAttributes qpda,
                                  QueryPlanWhyNotMatch planWhyNotMatch) {
         this.qppd = qppd;
         this.qppdg = qppdg;
         this.qpds = qpds;
+        this.qpda = qpda;
         this.planWhyNotMatch = planWhyNotMatch;
     }
 
@@ -71,7 +71,14 @@ public class QueryPatternDetection implements Query {
             qppdg.setMetadata(m);
             qppdg.setEventTypesInLog(qpdw.getPattern().getEventTypes());
             return qppdg;
-        } else {
+        }
+        else if (qpdw.getAttributes() != null && !qpdw.getAttributes().isEmpty()) {
+            qpda.setEventTypesInLog(qpdw.getPattern().getEventTypes());
+            qpda.setAttributes(qpdw.getAttributes());
+            qpda.setMetadata(m);
+            return qpda;
+        }
+        else {
             qppd.setEventTypesInLog(qpdw.getPattern().getEventTypes());
             qppd.setMetadata(m);
             return qppd;

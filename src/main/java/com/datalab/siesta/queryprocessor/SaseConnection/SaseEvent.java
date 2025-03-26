@@ -7,6 +7,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.joda.time.Instant;
 
 import java.sql.Timestamp;
+import java.util.HashMap;
+import java.util.Map;
 
 
 /**
@@ -26,6 +28,8 @@ public class SaseEvent implements Event {
     private boolean isTimestampSet;
 
     private long minTs;
+
+    private Map<String, String> attributes;
 
     public SaseEvent() {
     }
@@ -102,6 +106,7 @@ public class SaseEvent implements Event {
         }
 
         e.setTraceID(this.trace_id);
+        e.setAttributes(this.attributes);
         return e;
     }
 

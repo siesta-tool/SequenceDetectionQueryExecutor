@@ -5,8 +5,11 @@ import com.datalab.siesta.queryprocessor.model.Patterns.ComplexPattern;
 import com.datalab.siesta.queryprocessor.model.WhyNotMatch.WhyNotMatchConfig;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.hadoop.util.hash.Hash;
 
 import java.sql.Timestamp;
+import java.util.HashMap;
+import java.util.Map;
 
 
 /**
@@ -32,6 +35,9 @@ public class QueryPatternDetectionWrapper extends QueryWrapper {
     @JsonProperty("groups-config")
     private GroupConfig groupConfig;
 
+    @JsonProperty("attributes")
+    private Map<String, String> attributes;
+
     private boolean returnAll;
 
     /**
@@ -45,6 +51,7 @@ public class QueryPatternDetectionWrapper extends QueryWrapper {
         this.till=null;
         this.groupConfig=new GroupConfig();
         this.whyNotMatchConfig = new WhyNotMatchConfig();
+        this.attributes = new HashMap<>();
     }
 
     public ComplexPattern getPattern() {
@@ -94,6 +101,10 @@ public class QueryPatternDetectionWrapper extends QueryWrapper {
     public void setWhyNotMatchConfig(WhyNotMatchConfig whyNotMatchConfig) {
         this.whyNotMatchConfig = whyNotMatchConfig;
     }
+
+    public Map<String,String> getAttributes() {return attributes;}
+
+    public void setAttributes(Map<String, String> attributes) {this.attributes = attributes;}
 
     public boolean isHasGroups() {
         return hasGroups;

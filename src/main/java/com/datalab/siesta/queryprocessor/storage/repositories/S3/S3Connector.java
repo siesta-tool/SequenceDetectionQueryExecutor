@@ -9,6 +9,7 @@ import com.datalab.siesta.queryprocessor.declare.model.declareState.UnorderState
 import com.datalab.siesta.queryprocessor.model.DBModel.*;
 import com.datalab.siesta.queryprocessor.model.Utils.Utils;
 import com.datalab.siesta.queryprocessor.storage.model.EventModel;
+import com.datalab.siesta.queryprocessor.storage.model.EventModelAttributes;
 import com.datalab.siesta.queryprocessor.storage.repositories.SparkDatabaseRepository;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -113,7 +114,7 @@ public class S3Connector extends SparkDatabaseRepository {
     }
 
     @Override
-    protected Dataset<EventModel> readSequenceTable(String logname){
+    protected Dataset<EventModelAttributes> readSequenceTable(String logname){
         Dataset<Row> df;
         try{
             String path = String.format("%s%s%s", bucket, logname, "/seq.parquet/");
@@ -123,14 +124,15 @@ public class S3Connector extends SparkDatabaseRepository {
             df = sparkSession.read().format("delta").load(path)
                     .withColumnRenamed("trace","trace_id");
         }
-        Dataset<EventModel> eventsDF = df
+        Dataset<EventModelAttributes> eventsDF = df
                 .selectExpr(
                         "trace_id as traceId",
                         "event_type as eventName",
                         "CAST(timestamp AS STRING) as timestamp",  // Ensure timestamp is correctly formatted
-                        "position"
+                        "position",
+                        "attributes"
                 )
-                .as(Encoders.bean(EventModel.class));
+                .as(Encoders.bean(EventModelAttributes.class));
         return eventsDF;
     }
 

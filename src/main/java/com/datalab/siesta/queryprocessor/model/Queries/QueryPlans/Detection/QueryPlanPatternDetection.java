@@ -69,6 +69,15 @@ public class QueryPlanPatternDetection implements QueryPlan {
      */
     protected Set<String> eventTypesInLog;
 
+    /**
+     * A hash map containing all the attribute filters of the query.
+     */
+    protected Map<String, String> attributes;
+
+    public void setAttributes(Map<String, String> attributes) {
+        this.attributes = attributes;
+    }
+
     public void setEventTypesInLog(Set<String> eventTypesInLog) {
         this.eventTypesInLog = eventTypesInLog;
     }
