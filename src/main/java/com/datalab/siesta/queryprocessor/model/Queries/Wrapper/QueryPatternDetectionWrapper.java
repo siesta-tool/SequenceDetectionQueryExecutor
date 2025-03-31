@@ -36,7 +36,7 @@ public class QueryPatternDetectionWrapper extends QueryWrapper {
     private GroupConfig groupConfig;
 
     @JsonProperty("attributes")
-    private Map<String, String> attributes;
+    private Map<Integer, Map<String,String>> attributes;
 
     private boolean returnAll;
 
@@ -102,9 +102,9 @@ public class QueryPatternDetectionWrapper extends QueryWrapper {
         this.whyNotMatchConfig = whyNotMatchConfig;
     }
 
-    public Map<String,String> getAttributes() {return attributes;}
+    public Map<Integer, Map<String,String>> getAttributes() {return attributes;}
 
-    public void setAttributes(Map<String, String> attributes) {this.attributes = attributes;}
+    public void setAttributes(Map<Integer, Map<String,String>> attributes) {this.attributes = attributes;}
 
     public boolean isHasGroups() {
         return hasGroups;

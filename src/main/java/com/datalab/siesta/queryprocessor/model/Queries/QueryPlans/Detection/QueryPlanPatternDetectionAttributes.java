@@ -110,21 +110,37 @@ public class QueryPlanPatternDetectionAttributes extends QueryPlanPatternDetecti
     }
 
     private boolean meetsAttributeCriteria(Occurrences occurrences) {
-        Map<String, String> criteria = this.attributes;
-
-        if (criteria == null || criteria.isEmpty()) {
+        if (attributes == null || attributes.isEmpty()) {
             return true;
         }
 
         for (Occurrence occurrence : occurrences.getOccurrences()) {
-            // Ensure *all* events in the occurrence meet the criteria
-            if (occurrence.getOccurrence().stream()
-                    .allMatch(event -> event.getAttributes() != null &&
-                            event.getAttributes().entrySet().containsAll(criteria.entrySet()))) {
+            List<EventBoth> events = occurrence.getOccurrence(); // Get list of events in occurrence
+
+            if (events.size() < attributes.size()) {
+                continue;
+            }
+
+            boolean allMatch = true;
+
+            for (int index = 0; index < events.size() && index < attributes.size(); index++) {
+                EventBoth event = events.get(index);
+                Map<String, String> eventAttributes = event.getAttributes();
+                Map<String, String> criteriaAttributes = attributes.get(index);
+
+                // If there is a criteria for this index, check attributes match
+                if (criteriaAttributes != null && !criteriaAttributes.isEmpty()) {
+                    if (eventAttributes == null || !eventAttributes.entrySet().containsAll(criteriaAttributes.entrySet())) {
+                        allMatch = false;
+                        break; // No need to check further
+                    }
+                }
+            }
+
+            if (allMatch) {
                 return true;
             }
         }
         return false;
     }
-
 }

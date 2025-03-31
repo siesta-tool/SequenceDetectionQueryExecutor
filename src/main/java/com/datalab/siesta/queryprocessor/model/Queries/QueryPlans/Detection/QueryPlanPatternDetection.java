@@ -72,9 +72,9 @@ public class QueryPlanPatternDetection implements QueryPlan {
     /**
      * A hash map containing all the attribute filters of the query.
      */
-    protected Map<String, String> attributes;
+    protected Map<Integer, Map<String, String>> attributes;
 
-    public void setAttributes(Map<String, String> attributes) {
+    public void setAttributes(Map<Integer, Map<String, String>> attributes) {
         this.attributes = attributes;
     }
 
