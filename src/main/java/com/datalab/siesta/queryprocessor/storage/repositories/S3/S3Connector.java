@@ -193,6 +193,7 @@ public class S3Connector extends SparkDatabaseRepository {
         try{
             String path = String.format("%s%s%s", bucket, logname, "/index.parquet/");
             df = sparkSession.read().parquet(path);
+            String[] columns = df.columns();
         }catch (Exception e){
             String path = String.format("%s%s%s", bucket, logname, "/index/");
             df = sparkSession.read().format("delta").load(path)

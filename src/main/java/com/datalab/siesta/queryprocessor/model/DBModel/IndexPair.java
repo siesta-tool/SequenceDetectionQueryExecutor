@@ -10,9 +10,7 @@ import lombok.Setter;
 
 import java.io.Serializable;
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * A record of the IndexTable. Stores information about:
@@ -35,6 +33,9 @@ public class IndexPair implements Serializable {
     private String timestampB;
     private int positionA;
     private int positionB;
+    private Map<String, String> attributesA;
+    private Map<String, String> attributesB;
+
 
     public IndexPair() {
         this.eventA = "";
@@ -43,6 +44,8 @@ public class IndexPair implements Serializable {
         this.positionB = -1;
         this.timestampA = null;
         this.timestampB = null;
+        this.attributesA = new HashMap<>();
+        this.attributesB = new HashMap<>();
     }
 
     public IndexPair(String traceId, String eventA, String eventB, String timestampA, String timestampB) {
@@ -65,6 +68,31 @@ public class IndexPair implements Serializable {
         this.positionB = positionB;
     }
 
+    public IndexPair(String traceId, String eventA, String eventB, String timestampA, String timestampB, Map<String,String> attributesA, Map<String,String> attributesB)
+    {
+        this.trace_id = traceId;
+        this.timestampA = timestampA;
+        this.timestampB = timestampB;
+        this.eventA = eventA;
+        this.eventB = eventB;
+        this.positionA = -1;
+        this.positionB = -1;
+        this.attributesA = attributesA;
+        this.attributesB = attributesB;
+    }
+
+    public IndexPair(String traceId, String eventA, String eventB, int positionA, int positionB, Map<String,String> attributesA, Map<String,String> attributesB)
+    {
+        this.trace_id = traceId;
+        this.timestampA = null;
+        this.timestampB = null;
+        this.eventA = eventA;
+        this.eventB = eventB;
+        this.positionA = positionA;
+        this.positionB = positionB;
+        this.attributesA = attributesA;
+        this.attributesB = attributesB;
+    }
 
     @JsonIgnore
     public boolean validate(Set<EventPair> pairs){

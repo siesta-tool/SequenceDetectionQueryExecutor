@@ -10,6 +10,10 @@ import com.datalab.siesta.queryprocessor.storage.model.*;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.Column;
+import static org.apache.spark.sql.functions.col;
+import static org.apache.spark.sql.functions.first;
+
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.storage.StorageLevel;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -114,7 +118,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
                 indexRows = indexRows.filter(functions.col("timestampB-2").isNull()
                         .or(functions.col("timestampB-2").leq(till)));
             }
-            indexDataset = indexRows.select("trace_id", "eventA", "eventB", "timestampA", "timestampB", "positionA", "positionB")
+            indexDataset = indexRows.select("trace_id", "eventA", "eventB", "timestampA", "timestampB", "positionA", "positionB", "attributesA", "attributesB")
                     .as(Encoders.bean(IndexPair.class));
         }
 
@@ -227,7 +231,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
     private IndexRecords transformToIndexRecords(Dataset<IndexPair> indexPairs) {
         Dataset<Row> groupedDf = indexPairs.withColumn("indexPair",
                         functions.struct("trace_id", "eventA", "eventB", "timestampA",
-                                "timestampB", "positionA", "positionB"))
+                                "timestampB", "positionA", "positionB", "attributesA", "attributesB"))
                 .groupBy("eventA", "eventB")
                 .agg(functions.collect_list("indexPair").alias("indexPairs"))
                 .select("traceId", "events");
@@ -248,7 +252,9 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
                                             eventRow.getString(3),
                                             eventRow.getString(4),
                                             eventRow.getInt(5),
-                                            eventRow.getInt(6)
+                                            eventRow.getInt(6),
+                                            eventRow.getJavaMap(7),
+                                            eventRow.getJavaMap(8)
                                     ))
                                     .collect(Collectors.toList());
                         }
@@ -300,7 +306,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         // Filter to maintain only the pruned traces
         Dataset<IndexPair> filteredDf = pairs.filter(functions.col("trace_id").isin(traceIds.toArray()));
         // Extract EventBoth from the IndexPair
-        Dataset<EventModel> eventsDf = this.getEventsFromIndexRecords(filteredDf);
+        Dataset<EventModelAttributes> eventsDf = this.getEventsFromIndexRecordsAttributes(filteredDf);
 
         // Check if timestamp filtering is needed
         boolean filterByTime = from != null || till != null;
@@ -318,12 +324,12 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
                         functions.col("timestamp-2").isNull().or(
                                 functions.col("timestamp-2").leq(till)));
             }
-            eventsDf = rows.select("eventName", "traceId", "position", "timestamp")
-                    .as(Encoders.bean(EventModel.class));
+            eventsDf = rows.select("eventName", "traceId", "position", "timestamp", "attributes")
+                    .as(Encoders.bean(EventModelAttributes.class));
         }
 
         Dataset<Row> groupedDf = eventsDf
-                .withColumn("event", functions.struct("traceId", "eventName", "position", "timestamp"))
+                .withColumn("event", functions.struct("traceId", "eventName", "position", "timestamp", "attributes"))
                 .groupBy("traceId")
                 .agg(functions.collect_list("event").alias("events"))
                 .select("traceId", "events");
@@ -342,13 +348,15 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
                                             return new EventPos(
                                                     eventRow.getString(1), // eventName
                                                     eventRow.getString(0), // traceId
-                                                    eventRow.getInt(2)    // position
+                                                    eventRow.getInt(2),    // position
+                                                    eventRow.getJavaMap(4) // attributes
                                             );
                                         } else {
                                             return new EventTs(
                                                     eventRow.getString(1), // eventName
                                                     eventRow.getString(0), // traceId
-                                                    Timestamp.valueOf(eventRow.getString(3))// timestamp
+                                                    Timestamp.valueOf(eventRow.getString(3)), // timestamp
+                                                    eventRow.getJavaMap(4) // attributes
                                             );
                                         }
                                     })
@@ -593,6 +601,9 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         Column traceId = functions.col("trace_id");
         Column eventA = functions.col("eventA");
         Column eventB = functions.col("eventB");
+        Column attributesA = functions.col("attributesA");
+        Column attributesB = functions.col("attributesB");
+
 
         //here is the filtering for the till and from if the indexing has been done using timestamp
         if (hasTimestampA && hasTimestampB) {
@@ -604,7 +615,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
 
         Dataset<IndexPair> indexPairDataset = indexRows.select(traceId, eventA, eventB, timestampA.alias("timestampA"),
                         timestampB.alias("timestampB"), positionA.alias("positionA"),
-                        positionB.alias("positionB"))
+                        positionB.alias("positionB"), attributesA, attributesB)
                 .as(Encoders.bean(IndexPair.class));
         return indexPairDataset;
     }
@@ -633,6 +644,31 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         Dataset<EventModel> eventsDF = eventA_DF.union(eventB_DF)
                 .distinct()
                 .as(Encoders.bean(EventModel.class));
+        return eventsDF;
+    }
+
+    private Dataset<EventModelAttributes> getEventsFromIndexRecordsAttributes(Dataset<IndexPair> indexPairs) {
+        Column castedAttributesA = col("attributesA").cast(DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType));
+        Column castedAttributesB = col("attributesB").cast(DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType));
+
+        Dataset<Row> eventA_DF = indexPairs.select(
+                col("eventA").alias("eventName"),
+                col("timestampA").alias("timestamp"),
+                col("positionA").alias("position"),
+                col("trace_id").alias("traceId"),
+                castedAttributesA.alias("attributes")
+        );
+
+        Dataset<Row> eventB_DF = indexPairs.select(
+                col("eventB").alias("eventName"),
+                col("timestampB").alias("timestamp"),
+                col("positionB").alias("position"),
+                col("trace_id").alias("traceId"),
+                castedAttributesB.alias("attributes")
+        );
+        Dataset<EventModelAttributes> eventsDF = eventA_DF.union(eventB_DF)
+                .dropDuplicates("eventName", "timestamp", "position", "traceId")
+                .as(Encoders.bean(EventModelAttributes.class));
         return eventsDF;
     }
 

@@ -6,6 +6,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -16,10 +18,13 @@ public class EventPos extends Event implements Serializable, Comparable, Cloneab
     @JsonView(MappingJacksonViews.EventAllInfo.class)
     protected int position;
 
+    @JsonView(MappingJacksonViews.EventAllInfo.class)
+    protected Map<String, String> attributes;
 
     public EventPos() {
         this.position=-1;
         this.traceID="";
+        this.attributes = new HashMap<>();
     }
 
     public EventPos(String name, int pos) {
@@ -32,6 +37,12 @@ public class EventPos extends Event implements Serializable, Comparable, Cloneab
         this.position = position;
     }
 
+    public EventPos(String name, String traceID, int position, Map<String,String> attributes) {
+        super(name, traceID);
+        this.position = position;
+        this.attributes = attributes;
+    }
+
     public int getPosition() {
         return position;
     }
@@ -40,10 +51,14 @@ public class EventPos extends Event implements Serializable, Comparable, Cloneab
         this.position = position;
     }
 
+    public Map<String,String> getAttributes() {return attributes;}
+
+    public void setAttributes(Map<String,String> attributes) {this.attributes = attributes;}
+
     @Override
     @JsonIgnore
     public EventBoth getEventBoth(){
-        return new EventBoth(this.name,null,this.position);
+        return new EventBoth(this.name,null,null,this.position, this.attributes);
     }
 
     @Override
