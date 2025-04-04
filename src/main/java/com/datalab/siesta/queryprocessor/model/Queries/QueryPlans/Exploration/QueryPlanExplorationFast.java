@@ -50,10 +50,14 @@ public class QueryPlanExplorationFast implements QueryPlan {
         QueryExploreWrapper queryExploreWrapper = (QueryExploreWrapper) qw;
         Set<EventPair> pairs = queryExploreWrapper.getPattern().extractPairsConsecutive();
         //approximate the total completions of the pattern based on the occurrences of the consecutive pairs
-        List<Count> pairCount = dbConnector.getStats(queryExploreWrapper.getLog_name(), pairs);
-        int lastCompletions = this.getCompletionCountOfFullFunnel(pairCount);
         List<EventPos> events = queryExploreWrapper.getPattern().getEvents();
         String lastEvent = events.get(events.size() - 1).getName();
+        int lastCompletions = Integer.MAX_VALUE;
+        if(!pairs.isEmpty()) {
+            List<Count> pairCount = dbConnector.getStats(queryExploreWrapper.getLog_name(), pairs);
+            lastCompletions = this.getCompletionCountOfFullFunnel(pairCount);
+
+        }
         List<Proposition> props = this.exploreFast(lastEvent, queryExploreWrapper.getLog_name(), lastCompletions);
         props.sort(Collections.reverseOrder());
         return new QueryResponseExploration(props);

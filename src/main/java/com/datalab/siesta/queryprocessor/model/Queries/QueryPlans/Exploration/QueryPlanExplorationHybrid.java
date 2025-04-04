@@ -52,12 +52,16 @@ public class QueryPlanExplorationHybrid extends QueryPlanExplorationAccurate {
         List<Proposition> props = new ArrayList<>();
         int k = Math.min(fast.size(), queryExploreWrapper.getK());
         for (Proposition p : fast.subList(0, k)) {
-            try {
-                SimplePattern sp = (SimplePattern) queryExploreWrapper.getPattern().clone();
-                Proposition newp = this.patternDetection(sp, p.getEvent(), qw.getLog_name());
-                if (newp != null) props.add(newp);
-            } catch (CloneNotSupportedException e) {
-                throw new RuntimeException(e);
+            if(queryExploreWrapper.getPattern().getEvents().size() == 1) {
+                props.add(p);
+            }else {
+                try {
+                    SimplePattern sp = (SimplePattern) queryExploreWrapper.getPattern().clone();
+                    Proposition newp = this.patternDetection(sp, p.getEvent(), qw.getLog_name());
+                    if (newp != null) props.add(newp);
+                } catch (CloneNotSupportedException e) {
+                    throw new RuntimeException(e);
+                }
             }
         }
         props.sort(Collections.reverseOrder());
