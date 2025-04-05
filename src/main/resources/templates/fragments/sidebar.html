@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<body>
+<div th:fragment="sidebar">
+    <div class="mdl-list">
+        <div class="sidebar">
+            <div class="mdl-cell--top">
+                <img class="logo" th:src="@{/images/siesta-tool-logo.png}" alt="SIESTA">
+            </div>
+            <div class="center">
+                <div class="sidebar-categories">
+                    <p class="title button-container-item">Indices</p>
+                    <div class="refresh-container">
+                        <button id="refresh-btn" class="mdl-button mdl-js-button mdl-button--icon"
+                                style="color: #3F51B5;" onclick="startRefresh()">
+                            <i class="material-icons">refresh</i>
+                        </button>
+                        <div id="spinner" class="mdl-spinner mdl-js-spinner mdl-spinner--single-color"></div>
+                    </div>
+                </div>
+                <div id="logname-links"></div>
+                <p class="title button-container-item">Actions</p>
+                <a class="link" href="/ui/preprocess">
+
+                    <i class="material-icons" style="color: #3F51B5;">note_add</i>
+                    <span>Preprocess</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/sidebar.js}"></script>
+</div>
+</body>
+</html>
