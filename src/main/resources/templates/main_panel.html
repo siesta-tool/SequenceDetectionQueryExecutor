@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head th:replace="~{fragments/head.html::html_head('SIESTA')}"></head>
+
+<body>
+<div class="mdl-list">
+    <div th:replace="~{fragments/sidebar :: sidebar}"></div>
+
+    <div class="home-container">
+        <div th:replace="~{fragments/navigation_bar :: navbar(${logname})}"></div>
+
+
+        <div th:replace="~{fragments/query_log :: query_panel}"></div>
+
+    </div>
+
+
+</div>
+
+</body>
+</html>

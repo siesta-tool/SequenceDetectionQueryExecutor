@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 
-<div th:fragment="navbar">
+<div th:fragment="navbar(logname)">
   <div class="navbar">
-
+    <text class="title" th:text="${logname}"> </text>
 
   </div>
 

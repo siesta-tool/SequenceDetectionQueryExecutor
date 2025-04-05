@@ -4,10 +4,8 @@
     display: flex;
 }
 
-/*move belo to navigation bar*/
 .mdl-list .home-container{
     flex: 6 1;
-    color: rosybrown;
 }
 
 

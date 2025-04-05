@@ -8,7 +8,7 @@ function fetchLognamesAndRender() {
             data.forEach(logname => {
                 const link = document.createElement('a');
                 link.className = 'link';
-                link.href = `/ui/indices/${logname}`;
+                link.href = `/ui/query/${logname}`;
                 link.innerHTML = `
             <i class="material-icons" style="color: #3F51B5;">table_chart</i>
             <span>${logname}</span>
