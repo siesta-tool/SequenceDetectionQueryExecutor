@@ -42,6 +42,12 @@ public interface DatabaseRepository {
      */
     Set<String> findAllLongNames();
 
+    /**
+     * @param logname the log database
+     * @return a map with all the event types and their respective occurrences in the log
+     */
+    Map<String,Long> getEventTypeOccurrences(String logname);
+
 
     /**
      * Retrieves the corresponding stats (min, max duration and so on) from the CountTable, for a given set of event

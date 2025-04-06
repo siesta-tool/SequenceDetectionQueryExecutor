@@ -2,6 +2,7 @@ package com.datalab.siesta.queryprocessor.services;
 
 import com.datalab.siesta.queryprocessor.model.DBModel.Metadata;
 import com.datalab.siesta.queryprocessor.storage.DBConnector;
+import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -18,19 +19,30 @@ import java.util.Map;
  */
 @Service
 @ComponentScan
+@Getter
 public class LoadInfo {
 
     private DBConnector dbConnector;
 
 
+    private Map<String, Metadata> metadata;
+    private Map<String, List<String>> eventTypes;
+    private Map<String, Map<String, Long>> eventTypeOccurrences;
+
+
     @Autowired
     public LoadInfo(DBConnector dbConnector) {
         this.dbConnector = dbConnector;
-
+        reloadAll(); // initial load
     }
 
-    @Bean
-    public LoadedMetadata getAllMetadata() {
+    public void reloadAll() {
+        this.metadata = loadMetadata();
+        this.eventTypes = loadEventTypes();
+        this.eventTypeOccurrences = loadEventTypeOccurrences();
+    }
+
+    private Map<String, Metadata> loadMetadata() {
         Map<String, Metadata> m = new HashMap<>();
         for (String l : dbConnector.findAllLongNames()) {
             Metadata metadata = dbConnector.getMetadata(l);
@@ -43,15 +55,22 @@ public class LoadInfo {
             }
             m.put(l, metadata);
         }
-        return new LoadedMetadata(m);
+        return m;
     }
 
-    @Bean
-    public LoadedEventTypes getAllEventTypes() {
+    private Map<String, List<String>> loadEventTypes() {
         Map<String, List<String>> response = new HashMap<>();
         for (String l : dbConnector.findAllLongNames()) {
             response.put(l, dbConnector.getEventNames(l));
         }
-        return new LoadedEventTypes(response);
+        return response;
+    }
+
+    private Map<String, Map<String,Long>> loadEventTypeOccurrences() {
+        Map<String, Map<String,Long>> response = new HashMap<>();
+        for (String l : dbConnector.findAllLongNames()) {
+            response.put(l, dbConnector.getEventTypeOccurrences(l));
+        }
+        return response;
     }
 }

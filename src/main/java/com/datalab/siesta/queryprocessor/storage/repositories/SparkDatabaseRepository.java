@@ -519,6 +519,20 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         return events.collectAsList();
     }
 
+    @Override
+    public Map<String,Long> getEventTypeOccurrences(String logname){
+        Map<String,Long> response = new HashMap<>();
+        List<Row> r = readSingleTable(logname)
+                .groupBy("eventName")
+                .agg(functions.count("eventName").as("occurrences"))
+                .collectAsList();
+        r.forEach(row -> {
+            response.put(row.getAs("eventName"), row.getAs("occurrences"));
+        });
+
+        return response;
+    }
+
 
     /**
      * Retrieves the corresponding stats (min, max duration and so on) from the CountTable, for a given set of event

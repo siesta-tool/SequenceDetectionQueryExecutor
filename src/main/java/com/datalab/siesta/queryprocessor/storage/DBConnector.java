@@ -49,6 +49,14 @@ public class DBConnector {
     }
 
     /**
+     * @param logname the log database
+     * @return a map with all the event types and their respective occurrences in the log
+     */
+    public Map<String,Long> getEventTypeOccurrences(String logname) {
+        return db.getEventTypeOccurrences(logname);
+    }
+
+    /**
      * @return a set with all the stored log databases
      */
     public Set<String> findAllLongNames() {

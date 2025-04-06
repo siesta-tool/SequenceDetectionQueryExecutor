@@ -15,6 +15,7 @@ import com.datalab.siesta.queryprocessor.declare.queryWrappers.QueryWrapperDecla
 import com.datalab.siesta.queryprocessor.model.DBModel.Metadata;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.QueryPlan;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponse;
+import com.datalab.siesta.queryprocessor.services.LoadInfo;
 import com.datalab.siesta.queryprocessor.services.LoadedMetadata;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,7 +38,7 @@ import java.util.Set;
 public class DeclareController {
 
     @Autowired
-    private LoadedMetadata allMetadata;
+    private LoadInfo loadInfo;
 
     @Autowired
     private QueryPositions queryPositions;
@@ -69,7 +70,8 @@ public class DeclareController {
             @RequestParam(required = false, defaultValue = "both") String position,
             @RequestParam(required = false, defaultValue = "0.9") double support,
             @RequestParam(required = false, defaultValue = "false") boolean enforceNormalMining) throws IOException {
-        Metadata m = allMetadata.getMetadata(log_database);
+
+        Metadata m = loadInfo.getMetadata().getOrDefault(log_database,null);
         if (m == null) {
             return new ResponseEntity<>("{\"message\":\"Log database is not found! If it is recently indexed " +
                     "consider executing endpoint /refresh \"", HttpStatus.NOT_FOUND);
@@ -100,7 +102,7 @@ public class DeclareController {
             @RequestParam(required = false, defaultValue = "0.9") double support,
             @RequestParam(required = false, defaultValue = "false") boolean enforceNormalMining,
             @RequestParam List<String> modes) throws IOException {
-        Metadata m = allMetadata.getMetadata(log_database);
+        Metadata m = loadInfo.getMetadata().getOrDefault(log_database,null);
         if (m == null) {
             return new ResponseEntity<>("{\"message\":\"Log database is not found! If it is recently indexed " +
                     "consider executing endpoint /refresh \"", HttpStatus.NOT_FOUND);
@@ -142,7 +144,7 @@ public class DeclareController {
             @RequestParam(required = false, defaultValue = "false") boolean enforceNormalMining,
             @RequestParam(required = false, defaultValue = "simple") String mode,
             @RequestParam(required = false, defaultValue = "response") String constraint) throws IOException {
-        Metadata m = allMetadata.getMetadata(log_database);
+        Metadata m = loadInfo.getMetadata().getOrDefault(log_database,null);
         if (m == null) {
             return new ResponseEntity<>("{\"message\":\"Log database is not found! If it is recently indexed " +
                     "consider executing endpoint /refresh \"", HttpStatus.NOT_FOUND);
@@ -172,7 +174,7 @@ public class DeclareController {
             @RequestParam(required = false, defaultValue = "0.9") double support,
             @RequestParam(required = false, defaultValue = "false") boolean enforceNormalMining) throws IOException {
 
-        Metadata m = allMetadata.getMetadata(log_database);
+        Metadata m = loadInfo.getMetadata().getOrDefault(log_database,null);
         if (m == null) {
             return new ResponseEntity<>("{\"message\":\"Log database is not found! If it is recently indexed " +
                     "consider executing endpoint /refresh \"", HttpStatus.NOT_FOUND);

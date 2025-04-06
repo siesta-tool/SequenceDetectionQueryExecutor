@@ -36,24 +36,20 @@ import java.util.List;
 @RequestMapping(path = "/")
 public class QueryResponseController {
 
-    private LoadedMetadata allMetadata;
     private final QueryStats qs;
     private final QueryPatternDetection qpd;
     private final QueryExploration queryExploration;
     private final ObjectMapper objectMapper;
-    private LoadedEventTypes loadedEventTypes;
     private final LoadInfo loadInfo;
 
     @Autowired
-    public QueryResponseController(LoadedMetadata allMetadata, QueryStats qs,
+    public QueryResponseController(QueryStats qs,
                                    QueryPatternDetection qpd, QueryExploration queryExploration,
-                                   ObjectMapper objectMapper, LoadedEventTypes loadedEventTypes, LoadInfo loadInfo) {
-        this.allMetadata = allMetadata;
+                                   ObjectMapper objectMapper, LoadInfo loadInfo) {
         this.qs = qs;
         this.qpd = qpd;
         this.queryExploration = queryExploration;
         this.objectMapper = objectMapper;
-        this.loadedEventTypes = loadedEventTypes;
         this.loadInfo = loadInfo;
     }
 
@@ -62,7 +58,7 @@ public class QueryResponseController {
      */
     @RequestMapping(path = "/lognames", method = RequestMethod.GET)
     public ResponseEntity<MappingJacksonValue> getLognames() {
-        MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(allMetadata.getMetadata().keySet());
+        MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(loadInfo.getMetadata().keySet());
         return new ResponseEntity<>(mappingJacksonValue, HttpStatus.OK);
     }
 
@@ -72,7 +68,7 @@ public class QueryResponseController {
     @RequestMapping(path="/eventTypes", method = RequestMethod.POST)
     public ResponseEntity<MappingJacksonValue> getEventTypes(@RequestBody QueryMetadataWrapper qmw) {
         String logname = qmw.getLog_name();
-        List<String> s = loadedEventTypes.getEventTypes().getOrDefault(logname,null);
+        List<String> s = loadInfo.getEventTypes().getOrDefault(logname,null);
         if (s == null) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         } else {
@@ -87,8 +83,7 @@ public class QueryResponseController {
      */
     @RequestMapping(path = "/refreshData", method = RequestMethod.GET)
     public ResponseEntity<MappingJacksonValue> refreshData() {
-        this.loadedEventTypes=loadInfo.getAllEventTypes();
-        this.allMetadata=loadInfo.getAllMetadata();
+        this.loadInfo.reloadAll();
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
@@ -99,7 +94,7 @@ public class QueryResponseController {
     @RequestMapping(path = "/metadata", method = RequestMethod.POST)
     public ResponseEntity<MappingJacksonValue> getMetadata(@RequestBody QueryMetadataWrapper qmw) {
         String logname = qmw.getLog_name();
-        Metadata m = allMetadata.getMetadata(logname);
+        Metadata m = loadInfo.getMetadata().getOrDefault(logname,null);
         if (m == null) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         } else {
@@ -114,7 +109,7 @@ public class QueryResponseController {
      */
     @RequestMapping(path = "/stats", method = RequestMethod.POST)
     public ResponseEntity<MappingJacksonValue> getStats(@RequestBody QueryStatsWrapper qsp) {
-        Metadata m = allMetadata.getMetadata(qsp.getLog_name());
+        Metadata m = loadInfo.getMetadata().getOrDefault(qsp.getLog_name(),null);
         if (m == null) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         } else {
@@ -130,7 +125,7 @@ public class QueryResponseController {
      */
     @RequestMapping(path = "/detection", method = RequestMethod.POST)
     public ResponseEntity<String> patternDetection(@RequestBody QueryPatternDetectionWrapper qpdw) throws IOException {
-        Metadata m = allMetadata.getMetadata(qpdw.getLog_name());
+        Metadata m = loadInfo.getMetadata().getOrDefault(qpdw.getLog_name(),null);
         if (m == null) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         } else {
@@ -151,7 +146,7 @@ public class QueryResponseController {
      */
     @RequestMapping(path="/explore", method = RequestMethod.POST)
     public ResponseEntity<String> exploration(@RequestBody  QueryExploreWrapper queryExploreWrapper) throws IOException{
-        Metadata m = allMetadata.getMetadata(queryExploreWrapper.getLog_name());
+        Metadata m = loadInfo.getMetadata().getOrDefault(queryExploreWrapper.getLog_name(),null);
         if (m == null) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         } else {
