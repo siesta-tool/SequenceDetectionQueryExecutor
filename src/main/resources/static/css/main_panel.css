@@ -29,13 +29,13 @@
 
 .home-container  .section-title {
     font-weight: bold;
-    margin-top: 24px;
     margin-bottom: 8px;
     font-size: 1.1rem;
     border-bottom: 1px solid #ccc;
     padding-bottom: 4px;
 }
 
-.home-container  .search-box {
-    margin: 12px 0;
+.event-types-info{
+    display: flex;
+    flex-direction: row;
 }

@@ -14,39 +14,7 @@
                             <a href="#mining-panel" class="mdl-tabs__tab">MINING CONSTRAINT</a>
                         </div>
 
-                        <div class="mdl-tabs__panel is-active" id="metadata-panel">
-                            <div class="mdl-card mdl-shadow--2dp">
-                                <div class="section-title">Parameters</div>
-                                <div class="info-grid">
-                                    <div><b>index</b><br th:text="${logname}"></div>
-                                    <div><b>compression</b><br th:text="${metadata.compression}"></div>
-                                    <div><b>has_previous_stored</b><br th:text="${metadata.has_previous_stored}"></div>
-                                    <div><b>lookback</b><br th:text="${metadata.lookback}"></div>
-                                    <div><b>mode</b><br th:text="${metadata.mode}"></div>
-                                    <div><b>streaming</b><br th:text="${metadata.streaming}"></div>
-                                </div>
-
-                                <div class="section-title">Metadata</div>
-                                <div class="info-grid">
-                                    <div><b>start_ts</b><br th:text="${metadata.start_ts}"></div>
-                                    <div><b>last_ts</b><br th:text="${metadata.last_ts}"></div>
-                                    <div><b>last_declare_mined</b><br th:text="${metadata.last_declare_mined !=null && !#strings.isEmpty(metadata.last_declare_mined) ? metadata.last_declare_mined : '-'}"></div>
-                                    <div><b>events</b><br th:text="${metadata.events}"></div>
-                                    <div><b>pairs</b><br th:text="${metadata.pairs}"></div>
-                                    <div><b>traces</b><br th:text="${metadata.traces}"></div>
-                                </div>
-
-                                <div class="section-title">Event types</div>
-                                <div class="search-box">
-                                    <input class="mdl-textfield__input" type="text" placeholder="Search event..." id="eventSearch">
-                                </div>
-                                <div class="event-types mdl-shadow--2dp mdl-color--white mdl-cell mdl-cell--4-col">
-                                    <select size="15" class="mdl-textfield__input" id="eventList">
-                                        <option th:each="e : ${eventTypes}" th:text="${e}"></option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
+                        <div th:replace="~{fragments/query_panels/metadata_panel :: metadata_panel}"></div>
 
                         <div class="mdl-tabs__panel" id="search-panel">
                             <p>Search content goes here...</p>
@@ -63,7 +31,7 @@
             </div>
         </main>
     </div>
-
+    <script th:src="@{/js/query_log.js}"></script>
 </div>
 
 </html>

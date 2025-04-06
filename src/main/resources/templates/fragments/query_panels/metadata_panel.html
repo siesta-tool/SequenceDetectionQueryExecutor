@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<div th:fragment="metadata_panel">
+    <div class="mdl-tabs__panel is-active" id="metadata-panel">
+        <div class="mdl-card mdl-shadow--2dp">
+            <div class="section-title">Parameters</div>
+            <div class="info-grid">
+                <div><b>index</b><br th:text="${logname}"></div>
+                <div><b>compression</b><br th:text="${metadata.compression}"></div>
+                <div><b>has_previous_stored</b><br th:text="${metadata.has_previous_stored}"></div>
+                <div><b>lookback</b><br th:text="${metadata.lookback}"></div>
+                <div><b>mode</b><br th:text="${metadata.mode}"></div>
+                <div><b>streaming</b><br th:text="${metadata.streaming}"></div>
+            </div>
+
+            <div class="section-title">Metadata</div>
+            <div class="info-grid">
+                <div><b>start_ts</b><br th:text="${metadata.start_ts}"></div>
+                <div><b>last_ts</b><br th:text="${metadata.last_ts}"></div>
+                <div><b>last_declare_mined</b><br th:text="${metadata.last_declare_mined !=null && !#strings.isEmpty(metadata.last_declare_mined) ? metadata.last_declare_mined : '-'}"></div>
+                <div><b>events</b><br th:text="${metadata.events}"></div>
+                <div><b>pairs</b><br th:text="${metadata.pairs}"></div>
+                <div><b>traces</b><br th:text="${metadata.traces}"></div>
+            </div>
+
+            <div class="section-title">Event types</div>
+            <div class="event-types-info">
+                <div class="mdl-shadow--2dp mdl-color--white mdl-cell mdl-cell--3-col">
+                    <select size="15" class="mdl-textfield__input" id="eventList" onchange="updateEventInfo()">
+                        <option th:each="e : ${eventTypes}" th:text="${e}"></option>
+                    </select>
+                </div>
+                <div id="event-info-card" class="mdl-shadow--2dp mdl-cell mdl-cell--9-col mdl-card" style="display: none;">
+                    <div class="info-grid">
+                        <div>
+                            <b>Event Name (Activity)</b><br>
+                            <span id="event-name">-</span>
+                        </div>
+                        <div>
+                            <b>Total Occurrences in Log</b><br>
+                            <span id="event-occurrences">-</span>
+                        </div>
+                        <div>
+                            <b>More Info?</b><br>
+                            <button id="event-more-info">Button</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        let eventStats = /*[[${eventStats}]]*/ {};
+    </script>
+
+
+</div>
+</html>

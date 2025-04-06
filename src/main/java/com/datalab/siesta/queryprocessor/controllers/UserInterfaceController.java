@@ -17,25 +17,31 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.List;
+import java.util.Map;
 
 @Controller
 public class UserInterfaceController {
-    private final LoadedMetadata allMetadata;
-    private final LoadedEventTypes loadedEventTypes;
+    private LoadInfo loadInfo;
 
     @Autowired
-    public UserInterfaceController(LoadedMetadata allMetadata, LoadedEventTypes loadedEventTypes) {
-        this.allMetadata = allMetadata;
-        this.loadedEventTypes = loadedEventTypes;
+    public UserInterfaceController(LoadInfo loadInfo) {
+        this.loadInfo = loadInfo;
+    }
+
+    @GetMapping("/")
+    public String home() {
+        return "home";
     }
 
     @GetMapping("/ui/query/{logname}")
     public String query(@PathVariable String logname, final Model model) {
         model.addAttribute("logname", logname);
-        Metadata m = allMetadata.getMetadata(logname);
+        Metadata m = loadInfo.getMetadata().get(logname);
         model.addAttribute("metadata",m);
-        List<String> s = loadedEventTypes.getEventTypes().getOrDefault(logname,null);
+        List<String> s = loadInfo.getEventTypes().getOrDefault(logname,null);
         model.addAttribute("eventTypes",s);
+        Map<String,Long> l = loadInfo.getEventTypeOccurrences().getOrDefault(logname,null);
+        model.addAttribute("eventStats",l);
         return "main_panel";
     }
 
