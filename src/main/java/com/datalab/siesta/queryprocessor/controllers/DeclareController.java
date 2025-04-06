@@ -94,7 +94,6 @@ public class DeclareController {
      * @param modes        a list of all the templates that needs to be extracted
      *                     (e.g., 'existence', 'exactly' etc.)
      *                     a complete list can be found in
-     *                     {@link QueryPlanExistences#execute(String, List, double)}
      * @param enforceNormalMining if true, the normal mining will be enforced
      */
     @RequestMapping(path = { "/existences", "/existences/" }, method = RequestMethod.GET)
