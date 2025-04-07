@@ -176,5 +176,8 @@ public interface DatabaseRepository {
     Dataset<OrderState> queryOrderState(String logname);
     Dataset<NegativeState> queryNegativeState(String logname);
 
+    //Below are for components that are needed in the ui
+    Map<Long,Long> getInstancesPerTrace(String logname, String eventType);
+
 
 }

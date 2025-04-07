@@ -1,4 +1,5 @@
 .mdl-list{
+    height: 100%;
     width: 100%;
     padding: 0 0;
     display: flex;
@@ -6,6 +7,11 @@
 
 .mdl-list .home-container{
     flex: 6 1;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
 }
 
 

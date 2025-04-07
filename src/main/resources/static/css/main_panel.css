@@ -13,7 +13,7 @@
 
 .home-container  .mdl-card {
     width: 100%;
-    padding: 20px;
+    padding: 10px;
 }
 
 .home-container .info-grid {
@@ -38,4 +38,16 @@
 .event-types-info{
     display: flex;
     flex-direction: row;
+}
+
+#eventList{
+    height: 100%;
+}
+
+#graph-container{
+    height: 300px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+
 }

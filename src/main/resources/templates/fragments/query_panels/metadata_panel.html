@@ -31,24 +31,45 @@
                     </select>
                 </div>
                 <div id="event-info-card" class="mdl-shadow--2dp mdl-cell mdl-cell--9-col mdl-card" style="display: none;">
-                    <div class="info-grid">
-                        <div>
-                            <b>Event Name (Activity)</b><br>
-                            <span id="event-name">-</span>
+                    <div class="mdl-grid" style="align-items: center;">
+                        <div class="mdl-cell mdl-cell--6-col">
+                            <div>
+                                <b>Event Name:</b>
+                                <span id="event-name">-</span>
+                            </div>
+                            <div>
+                                <b>Total Occurrences:</b>
+                                <span id="event-occurrences">-</span>
+                            </div>
                         </div>
-                        <div>
-                            <b>Total Occurrences in Log</b><br>
-                            <span id="event-occurrences">-</span>
+                        <div class="mdl-cell mdl-cell--3-col">
+                            <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+                                <select class="mdl-textfield__input" id="graph-selector" onchange="handleGraphSelection()">
+                                    <option value="">Additional info</option>
+                                    <option value="instances-per-trace">Instances per Trace</option>
+                                    <!-- More graph types in the future -->
+                                </select>
+                            </div>
                         </div>
-                        <div>
-                            <b>More Info?</b><br>
-                            <button id="event-more-info">Button</button>
+
+                    </div>
+                    <div class="mdl-grid">
+                        <div id="graph-container" class="mdl-cell mdl-cell--12-col mdl-shadow--2dp mdl-color--white">
+                            <div id="graph-progress-bar" class="mdl-progress mdl-js-progress mdl-progress__indeterminate"></div>
+
+                            <canvas id="event-graph-canvas"></canvas>
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>
     </div>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Zoom plugin for Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 
     <script th:inline="javascript">
         let eventStats = /*[[${eventStats}]]*/ {};

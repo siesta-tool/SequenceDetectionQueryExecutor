@@ -3,10 +3,12 @@
 
 <body>
 <div th:fragment="sidebar">
-    <div class="mdl-list">
         <div class="sidebar">
             <div class="mdl-cell--top">
-                <img class="logo" th:src="@{/images/siesta-tool-logo.png}" alt="SIESTA">
+                <a href="/ui/home">
+                    <img th:src="@{/images/siesta-tool-logo.png}" alt="SIESTA" class="logo" style="cursor: pointer;">
+                </a>
+<!--                <img class="logo" th:src="@{/images/siesta-tool-logo.png}" alt="SIESTA">-->
             </div>
             <div class="center">
                 <div class="sidebar-categories">
@@ -28,7 +30,6 @@
                 </a>
             </div>
         </div>
-    </div>
 
     <script th:src="@{/js/sidebar.js}"></script>
 </div>

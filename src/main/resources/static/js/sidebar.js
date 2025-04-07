@@ -4,15 +4,20 @@ function fetchLognamesAndRender() {
         .then(data => {
             const container = document.getElementById('logname-links');
             container.innerHTML = ''; // Clear previous content if needed
+            const currentPath = window.location.pathname;
 
             data.forEach(logname => {
                 const link = document.createElement('a');
                 link.className = 'link';
-                link.href = `/ui/query/${logname}`;
+                const href = `/ui/query/${logname}`;
+                link.href = href;
+                if (currentPath === href) {
+                    link.classList.add('active-log'); // Add highlight if it's the current log
+                }
                 link.innerHTML = `
-            <i class="material-icons" style="color: #3F51B5;">table_chart</i>
-            <span>${logname}</span>
-          `;
+                  <i class="material-icons" style="color: #3F51B5;">table_chart</i>
+                  <span>${logname}</span>
+                `;
                 container.appendChild(link);
             });
         })

@@ -715,4 +715,24 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         return response;
     }
 
+    @Override
+    public Map<Long,Long> getInstancesPerTrace(String logname, String eventType){
+        Map<Long,Long> instancesPerTrace = new HashMap<>();
+        List<Row> eventDF = this.readSingleTable(logname)
+                .filter(functions.col("eventName").equalTo(eventType))
+                .groupBy("traceId")
+                .agg(functions.count("*").alias("instances"))
+                .select("traceId", "instances")
+                .groupBy("instances")
+                .agg(functions.count("*").alias("traces"))
+                .select("instances", "traces")
+                .collectAsList();
+        eventDF.forEach(row -> {
+            instancesPerTrace.put(row.getAs("instances"), row.getAs("traces"));
+        });
+
+
+        return instancesPerTrace;
+    }
+
 }

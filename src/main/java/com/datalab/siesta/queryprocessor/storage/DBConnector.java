@@ -173,4 +173,8 @@ public class DBConnector {
         return db.queryIndexTable(pairs, logname, metadata, from, till);
     }
 
+    public Map<Long,Long> getInstancesPerTrace(String logname, String eventType){
+        return db.getInstancesPerTrace(logname,eventType);
+    }
+
 }
