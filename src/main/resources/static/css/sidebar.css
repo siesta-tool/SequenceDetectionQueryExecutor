@@ -1,11 +1,13 @@
 
 .sidebar{
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100vh;
     border-right: 2px solid #e6e3e3;
-    flex: 1 1;
-    /*min-height: 100vh;*/
     min-width: 150px;
     max-width: 200px;
-    height: 100%;
+    flex-shrink: 0;
 }
 
 .sidebar .mdl-cell--top{
@@ -79,8 +81,4 @@
     border-left: 4px solid #3F51B5;
     font-weight: bold;
     padding-left: 8px;
-}
-
-.link {
-    transition: background-color 0.3s ease, padding-left 0.3s ease;
 }

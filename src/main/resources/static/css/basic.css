@@ -4,6 +4,13 @@
     padding: 0 0;
     display: flex;
 }
+.home-container{
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    height: 100vh; /* takes up full screen height */
+}
 
 .mdl-list .home-container{
     flex: 6 1;
@@ -12,6 +19,22 @@
 html, body {
     height: 100%;
     margin: 0;
+    padding: 0;
 }
 
 
+body {
+    display: flex;
+}
+
+
+
+.layout-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+.main-content {
+    flex: 1;
+    overflow-y: auto;
+}

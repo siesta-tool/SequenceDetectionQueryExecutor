@@ -5,6 +5,8 @@
     font-size: 25px;
     line-height: 1.5;
     letter-spacing: 0.00938em;
+    height: 80px;
+    padding-top: 40px;
 }
 
 .home-container .mdl-layout__container {
