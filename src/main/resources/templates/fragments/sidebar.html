@@ -1,36 +1,47 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 
-<body>
-<div th:fragment="sidebar">
-        <div class="sidebar">
-            <div class="mdl-cell--top">
-                <a href="/ui/home">
-                    <img th:src="@{/images/siesta-tool-logo.png}" alt="SIESTA" class="logo" style="cursor: pointer;">
-                </a>
-            </div>
-            <div class="center">
-                <div class="sidebar-categories">
-                    <p class="title button-container-item">Indices</p>
-                    <div class="refresh-container">
-                        <button id="refresh-btn" class="mdl-button mdl-js-button mdl-button--icon"
-                                style="color: #3F51B5;" onclick="startRefresh()">
-                            <i class="material-icons">refresh</i>
-                        </button>
-                        <div id="spinner" class="mdl-spinner mdl-js-spinner mdl-spinner--single-color"></div>
-                    </div>
-                </div>
-                <div id="logname-links"></div>
-                <p class="title button-container-item">Actions</p>
-                <a class="link" href="/ui/preprocess">
 
-                    <i class="material-icons" style="color: #3F51B5;">note_add</i>
-                    <span>Preprocess</span>
-                </a>
-            </div>
+<th:block th:fragment="sidebar">
+    <div class="sidebar">
+        <div class="mdl-cell--top">
+            <a href="/ui/home">
+                <img th:src="@{/images/siesta-tool-logo.png}" alt="SIESTA" class="logo" style="cursor: pointer;">
+            </a>
         </div>
 
-    <script th:src="@{/js/sidebar.js}"></script>
-</div>
-</body>
-</html>
+        <div class="center">
+            <div class="sidebar-categories">
+                <p class="title button-container-item">Log Databases</p>
+                <div class="refresh-container">
+                    <button id="refresh-btn" class="mdl-button mdl-js-button mdl-button--icon"
+                            style="color: #3F51B5;" onclick="startRefresh()">
+                        <i class="material-icons">refresh</i>
+                    </button>
+                    <div id="spinner" class="mdl-spinner mdl-js-spinner mdl-spinner--single-color"></div>
+                </div>
+            </div>
+            <div id="sidebar-tabs"></div>
+            </div>
+        </div>
+        <script th:src="@{/js/sidebar.js}"></script>
+</th:block>
+
+<th:block th:fragment="lognameTabs" >
+    <div class="sidebar-tabs">
+        <div class="tab"
+             th:each="logname : ${lognames}"
+             th:classappend="${logname == currentLogname} ? 'active-tab'"
+             th:attr="onclick=|metadataLog('${logname}')|">
+            <span class="tab-icon material-icons">table_chart</span>
+            <span class="tab-label" th:text="${logname}">Logname</span>
+        </div>
+        <p class="title button-container-item">Actions</p>
+        <div class="tab" id = "process-tab"
+             onclick="processTab()">
+            <span class="tab-icon material-icons">note_add</span>
+            <span class="tab-label">Preprocess</span>
+        </div>
+    </div>
+</th:block>
+

@@ -63,22 +63,38 @@
     height: 24px;
 }
 
-.sidebar .link {
+
+.sidebar-tabs {
     display: flex;
-    text-decoration: none;
-    padding-left: 12px;
-    margin-top: 5px;
+    flex-direction: column;
 }
 
-.sidebar .link span{
-    color: black;
-    padding-top: 2px;
-    padding-left: 10px;
+.tab {
+    display: flex;
+    align-items: center;
+    padding-bottom: 5px;
+    padding-top: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border-left: 4px solid transparent;
 }
 
-.link.active-log {
+.tab:hover {
+    background-color: #f0f4ff;
+}
+
+.tab-icon {
+    color: #3F51B5;
+    font-size: 20px;
+}
+
+.tab-label {
+    margin-left: 10px;
+    color: #333;
+}
+
+.active-tab {
     background-color: #e0e7fa;
     border-left: 4px solid #3F51B5;
     font-weight: bold;
-    padding-left: 8px;
 }

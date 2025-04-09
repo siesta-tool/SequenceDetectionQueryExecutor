@@ -11,6 +11,8 @@
 
 .home-container .mdl-layout__container {
     position:relative;
+    padding: 10px;
+
 }
 
 .home-container  .mdl-card {

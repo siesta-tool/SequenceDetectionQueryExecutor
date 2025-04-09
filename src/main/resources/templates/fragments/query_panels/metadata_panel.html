@@ -1,80 +1,82 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <div th:fragment="metadata_panel">
-    <div class="mdl-tabs__panel is-active" id="metadata-panel">
-        <div class="mdl-card mdl-shadow--2dp">
-            <div class="section-title">Parameters</div>
-            <div class="info-grid">
-                <div><b>index</b><br th:text="${logname}"></div>
-                <div><b>compression</b><br th:text="${metadata.compression}"></div>
-                <div><b>has_previous_stored</b><br th:text="${metadata.has_previous_stored}"></div>
-                <div><b>lookback</b><br th:text="${metadata.lookback}"></div>
-                <div><b>mode</b><br th:text="${metadata.mode}"></div>
-                <div><b>streaming</b><br th:text="${metadata.streaming}"></div>
-            </div>
+    <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
+        <main class="mdl-layout__content">
+            <div class="mdl-grid">
+                <div class="mdl-cell mdl-cell--12-col">
+                    <div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+                        <div class="mdl-tabs__panel is-active" id="metadata-panel">
+                            <div class="mdl-card mdl-shadow--2dp">
+                                <div class="section-title">Parameters</div>
+                                <div class="info-grid">
+                                    <div><b>Log database name</b><br th:text="${logname}"></div>
+                                    <div><b>Data compression</b><br th:text="${metadata.compression}"></div>
+                                    <div><b>Lookback time (days)</b><br th:text="${metadata.lookback}"></div>
+                                    <div><b>Storage mode</b><br th:text="${metadata.mode}"></div>
+                                    <div><b>Created from stream</b><br th:text="${metadata.streaming}"></div>
+                                </div>
 
-            <div class="section-title">Metadata</div>
-            <div class="info-grid">
-                <div><b>start_ts</b><br th:text="${metadata.start_ts}"></div>
-                <div><b>last_ts</b><br th:text="${metadata.last_ts}"></div>
-                <div><b>last_declare_mined</b><br th:text="${metadata.last_declare_mined !=null && !#strings.isEmpty(metadata.last_declare_mined) ? metadata.last_declare_mined : '-'}"></div>
-                <div><b>events</b><br th:text="${metadata.events}"></div>
-                <div><b>pairs</b><br th:text="${metadata.pairs}"></div>
-                <div><b>traces</b><br th:text="${metadata.traces}"></div>
-            </div>
+                                <div class="section-title">Metadata</div>
+                                <div class="info-grid">
+                                    <div><b>Starting timestamp</b><br th:text="${metadata.start_ts}"></div>
+                                    <div><b>Last timestamp</b><br th:text="${metadata.last_ts}"></div>
+                                    <div><b>Last timestamp declare miner executed</b><br th:text="${metadata.last_declare_mined !=null && !#strings.isEmpty(metadata.last_declare_mined) ? metadata.last_declare_mined : '-'}"></div>
+                                    <div><b>Number of events</b><br th:text="${metadata.events}"></div>
+                                    <div><b>Number of pairs</b><br th:text="${metadata.pairs}"></div>
+                                    <div><b>Number of traces</b><br th:text="${metadata.traces}"></div>
+                                </div>
 
-            <div class="section-title">Event types</div>
-            <div class="event-types-info">
-                <div class="mdl-shadow--2dp mdl-color--white mdl-cell mdl-cell--3-col">
-                    <select size="15" class="mdl-textfield__input" id="eventList" onchange="updateEventInfo()">
-                        <option th:each="e : ${eventTypes}" th:text="${e}"></option>
-                    </select>
-                </div>
-                <div id="event-info-card" class="mdl-shadow--2dp mdl-cell mdl-cell--9-col mdl-card" style="display: none;">
-                    <div class="mdl-grid" style="align-items: center;">
-                        <div class="mdl-cell mdl-cell--6-col">
-                            <div>
-                                <b>Event Name:</b>
-                                <span id="event-name">-</span>
-                            </div>
-                            <div>
-                                <b>Total Occurrences:</b>
-                                <span id="event-occurrences">-</span>
+                                <div class="section-title">Event types</div>
+                                <div class="event-types-info">
+                                    <div class="mdl-shadow--2dp mdl-color--white mdl-cell mdl-cell--3-col">
+                                        <select size="15" class="mdl-textfield__input" id="eventList" onchange="updateEventInfo()">
+                                            <option th:each="e : ${eventTypes}" th:text="${e}"></option>
+                                        </select>
+                                    </div>
+                                    <div id="event-info-card" class="mdl-shadow--2dp mdl-cell mdl-cell--9-col mdl-card" style="display: none;">
+                                        <div class="mdl-grid" style="align-items: center;">
+                                            <div class="mdl-cell mdl-cell--6-col">
+                                                <div>
+                                                    <b>Event Name:</b>
+                                                    <span id="event-name">-</span>
+                                                </div>
+                                                <div>
+                                                    <b>Total Occurrences:</b>
+                                                    <span id="event-occurrences">-</span>
+                                                </div>
+                                            </div>
+                                            <div class="mdl-cell mdl-cell--3-col">
+                                                <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+                                                    <select class="mdl-textfield__input" id="graph-selector" onchange="handleGraphSelection()">
+                                                        <option value="">Additional info</option>
+                                                        <option value="instances-per-trace">Instances per Trace</option>
+                                                        <!-- More graph types in the future -->
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                        <div class="mdl-grid">
+                                            <div id="graph-container" class="mdl-cell mdl-cell--12-col mdl-shadow--2dp mdl-color--white">
+                                                <div id="graph-progress-bar" class="mdl-progress mdl-js-progress mdl-progress__indeterminate"></div>
+
+                                                <canvas id="event-graph-canvas"></canvas>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="mdl-cell mdl-cell--3-col">
-                            <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                                <select class="mdl-textfield__input" id="graph-selector" onchange="handleGraphSelection()">
-                                    <option value="">Additional info</option>
-                                    <option value="instances-per-trace">Instances per Trace</option>
-                                    <!-- More graph types in the future -->
-                                </select>
-                            </div>
-                        </div>
-
                     </div>
-                    <div class="mdl-grid">
-                        <div id="graph-container" class="mdl-cell mdl-cell--12-col mdl-shadow--2dp mdl-color--white">
-                            <div id="graph-progress-bar" class="mdl-progress mdl-js-progress mdl-progress__indeterminate"></div>
-
-                            <canvas id="event-graph-canvas"></canvas>
-                        </div>
-                    </div>
-
                 </div>
             </div>
-        </div>
+        </main>
     </div>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- Zoom plugin for Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-
-    <script th:inline="javascript">
-        let eventStats = /*[[${eventStats}]]*/ {};
-    </script>
-
 
 </div>
+
+
+
 </html>

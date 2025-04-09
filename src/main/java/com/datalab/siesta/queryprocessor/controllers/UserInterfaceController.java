@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import javax.ws.rs.QueryParam;
 import java.util.List;
 import java.util.Map;
 
@@ -31,6 +30,31 @@ public class UserInterfaceController {
         return "home";
     }
 
+    @GetMapping("/fragments/sidebar-tabs")
+    public String getSidebarLinks(@RequestParam(required = false) String currentLogname, Model model) {
+        List<String> lognames = loadInfo.getEventTypes().keySet().stream().toList();
+        model.addAttribute("lognames", lognames);
+        model.addAttribute("currentLogname", currentLogname); // optional: for active highlighting
+        return "fragments/sidebar :: lognameTabs";
+    }
+
+    @GetMapping("/fragments/metadata-panel")
+    public String getMetadata(@RequestParam String logname, Model model) {
+        Metadata metadata = dbConnector.getMetadata(logname);
+        model.addAttribute("currentLogname", logname);
+        model.addAttribute("logname", logname);
+        model.addAttribute("metadata", metadata);
+        List<String> s = loadInfo.getEventTypes().getOrDefault(logname,null);
+        model.addAttribute("eventTypes",s);
+        Map<String,Long> l = loadInfo.getEventTypeOccurrences().getOrDefault(logname,null);
+        model.addAttribute("eventStats",l);
+        return "fragments/query_panels/metadata_panel :: metadata_panel";
+    }
+
+
+
+
+
     @GetMapping("/ui/event-graph-data")
     public ResponseEntity<Map<Long,Long>> eventGraphData(
             @RequestParam String logname,
@@ -49,23 +73,27 @@ public class UserInterfaceController {
         return ResponseEntity.notFound().build();
     }
 
-    @GetMapping("/ui/query/{logname}")
-    public String query(@PathVariable String logname, final Model model) {
-        model.addAttribute("logname", logname);
-        Metadata m = loadInfo.getMetadata().get(logname);
-        model.addAttribute("metadata",m);
-        List<String> s = loadInfo.getEventTypes().getOrDefault(logname,null);
-        model.addAttribute("eventTypes",s);
-        Map<String,Long> l = loadInfo.getEventTypeOccurrences().getOrDefault(logname,null);
-        model.addAttribute("eventStats",l);
-        model.addAttribute("logname", logname);
-        return "main_panel";
-    }
 
     @GetMapping("/ui/{page}")
     public String getUI(@PathVariable String page) {
         return page;
     }
+
+    @GetMapping("/total_occurrences")
+    public ResponseEntity<Long> getTotalOccurrences(@RequestParam(required = false) String logname,
+                                                    @RequestParam(required = false) String event_type) {
+        Map<String,Long> occurrences = loadInfo.getEventTypeOccurrences().getOrDefault(logname,null);
+        if (occurrences == null) {
+            return ResponseEntity.notFound().build();
+        }
+        Long total = occurrences.getOrDefault(event_type,null);
+        if (total == null) {
+            return ResponseEntity.notFound().build();
+        }else{
+            return ResponseEntity.ok().body(total);
+        }
+    }
+
 
 
 

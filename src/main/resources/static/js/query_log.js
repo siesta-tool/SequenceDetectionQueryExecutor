@@ -1,6 +1,6 @@
 let chartInstance = null;
 
-function updateEventInfo() {
+function updateEventInfo(){
     const select = document.getElementById("eventList");
     const selectedEvent = select.value;
 
@@ -12,7 +12,16 @@ function updateEventInfo() {
 
     if (selectedEvent) {
         eventNameEl.textContent = selectedEvent;
-        eventCountEl.textContent = eventStats[selectedEvent] !== undefined ? eventStats[selectedEvent] : "—";
+        fetch(`/total_occurrences?logname=${window.tabOpen}&event_type=${selectedEvent}`)
+            .then(res=>{
+                return res.json()})
+            .then(data=>{
+                eventCountEl.textContent= data;
+            })
+            .catch(err => {
+                console.error("Failed to load graph data", err);
+                graphContainer.innerHTML = "<span style='color:red;'>Failed to load graph.</span>";
+            })
         infoCardEl.style.display = "block";
         graphSelector.value="";
         graphContainer.style.display = "none";
@@ -21,7 +30,8 @@ function updateEventInfo() {
     }
 }
 
-function handleGraphSelection() {
+function handleGraphSelection(){
+
     const selectorGraph = document.getElementById("graph-selector");
     const selectedGraph = selectorGraph.value;
     const graphContainer = document.getElementById("graph-container");
@@ -38,7 +48,7 @@ function handleGraphSelection() {
 
 
     // Build localStorage key
-    const storageKey = getStorageKey(logname, selectedEvent, selectedGraph);
+    const storageKey = getStorageKey(window.tabOpen, selectedEvent, selectedGraph);
 
     // Check if data is already cached
     const cachedData = localStorage.getItem(storageKey);
@@ -51,7 +61,7 @@ function handleGraphSelection() {
     // Otherwise fetch from backend
     selectorGraph.disabled = true;
 
-    fetch(`/ui/event-graph-data?logname=${logname}&graph=${selectedGraph}&event_type=${selectedEvent}`)
+    fetch(`/ui/event-graph-data?logname=${window.tabOpen}&graph=${selectedGraph}&event_type=${selectedEvent}`)
         .then(res => res.json())
         .then(data => {
             // Save to localStorage
@@ -68,11 +78,11 @@ function handleGraphSelection() {
 
 }
 
-function getStorageKey(logname, eventType, graphType) {
+window.getStorageKey = function(logname, eventType, graphType) {
     return `${logname}::${eventType}::${graphType}`;
 }
 
-function renderGraph(data, graphType) {
+window.renderGraph=function (data, graphType) {
     const ctx = document.getElementById('event-graph-canvas').getContext('2d');
 
     const progressBar = document.getElementById("graph-progress-bar");
