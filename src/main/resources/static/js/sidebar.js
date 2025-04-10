@@ -1,3 +1,4 @@
+
 function startRefresh() {
     const btn = document.getElementById("refresh-btn");
     const spinner = document.getElementById("spinner");
@@ -8,7 +9,7 @@ function startRefresh() {
 
     fetch('/refreshData')
         .then(() => {
-            return fetch(`/fragments/sidebar-tabs?currentLogname=${currentLogname}`);
+            return fetch(`/fragments/sidebar-tabs`)
         })
         .then(res => res.text())
         .then(html => {
@@ -47,6 +48,34 @@ function processTab(){
     document.getElementById("main-panel").innerHTML = "";
 }
 
+function patternDetectionTab(){
+    window.tabOpen = "detection-tab";
+    document.querySelectorAll('.tab')
+        .forEach(tab => tab.classList.remove('active-tab'));
+    //set active tab to preprocess
+    document.getElementById("detection-tab").classList.add('active-tab')
+    document.getElementById("navbar-title").textContent = 'Pattern Detection';
+
+
+    fetch(`/fragments/pattern-detection`)
+        .then(res => res.text())
+        .then(html => {
+            const container = document.getElementById("main-panel");
+            container.innerHTML = html;
+
+            // Dynamically import the JS module and initialize
+            import('/js/components/event_search_bar.js')
+                .then(module => {
+                    module.initEventSearchBar(); // safe, scoped, repeatable
+                })
+                .catch(err => console.error('Failed to load module:', err));
+
+        })
+        .catch(err => {
+            console.error("Failed to load pattern detection", err);
+        });
+}
+
 function metadataLog(logname) {
     window.tabOpen = logname;
 
@@ -54,7 +83,6 @@ function metadataLog(logname) {
     document.querySelectorAll('.tab')
         .forEach(tab => tab.classList.remove('active-tab'));
 
-    // This assumes the clicked tab had unique logname text
     const clickedTab = Array.from(document.querySelectorAll('.tab')).find(t =>
         t.innerText.includes(logname)
     );
@@ -68,15 +96,6 @@ function metadataLog(logname) {
         .then(html => {
             const container = document.getElementById("main-panel");
             container.innerHTML = html;
-            // componentHandler.upgradeDom();
-            // const selector = container.querySelector("#graph-selector");
-            // if (selector) {
-            //     selector.addEventListener("change", window.handleGraphSelection);
-            // }
-            // const selector2 = container.querySelector("#eventList");
-            // if (selector2) {
-            //     selector2.addEventListener("change", window.updateEventInfo);
-            // }
         })
         .catch(err => {
             console.error("Failed to load metadata", err);

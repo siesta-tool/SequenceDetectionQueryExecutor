@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+
+<th:block th:fragment="event_search_bar">
+    <div id="input-wrapper">
+        <div id="input-row">
+            <div id="tags"></div>
+            <div id="input-holder">
+                <input type="text" id="event-input" placeholder="Type or click to select event..." autocomplete="off" />
+                <div id="dropdown-wrapper" class="hidden">
+                    <ul id="event-list" class="dropdown"></ul>
+                    <ul id="symbol-list" class="dropdown right hidden"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</th:block>
+
+
+
+</html>

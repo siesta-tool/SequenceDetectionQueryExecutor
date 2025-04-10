@@ -21,13 +21,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.json.MappingJacksonValue;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Main SIESTA controller
@@ -64,11 +62,26 @@ public class QueryResponseController {
 
     /**
      * Returns the names of the different activities that belong to a specific log database
+     * Will be deprecated as it makes no sense to make a post request to retrieve metadata
+     * TODO: remove it
+     * @deprecated
      */
     @RequestMapping(path="/eventTypes", method = RequestMethod.POST)
     public ResponseEntity<MappingJacksonValue> getEventTypes(@RequestBody QueryMetadataWrapper qmw) {
         String logname = qmw.getLog_name();
         List<String> s = loadInfo.getEventTypes().getOrDefault(logname,null);
+        if (s == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        } else {
+            MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(s);
+            return new ResponseEntity<>(mappingJacksonValue, HttpStatus.OK);
+        }
+    }
+
+    @RequestMapping(path="/eventTypes", method = RequestMethod.GET)
+    public ResponseEntity<MappingJacksonValue> getEventTypes(@RequestParam String logname) {
+        List<String> s = loadInfo.getEventTypes().getOrDefault(logname,null).stream().sorted()
+                .collect(Collectors.toList());
         if (s == null) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         } else {

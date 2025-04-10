@@ -1,0 +1,14 @@
+#pattern-search{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin-top: 10px;
+}
+
+#pattern-card{
+    height: 300px;
+}
+
+#logSelector{
+    width: 300px;
+}

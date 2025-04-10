@@ -9,7 +9,6 @@
                 <img th:src="@{/images/siesta-tool-logo.png}" alt="SIESTA" class="logo" style="cursor: pointer;">
             </a>
         </div>
-
         <div class="center">
             <div class="sidebar-categories">
                 <p class="title button-container-item">Log Databases</p>
@@ -41,6 +40,11 @@
              onclick="processTab()">
             <span class="tab-icon material-icons">note_add</span>
             <span class="tab-label">Preprocess</span>
+        </div>
+        <div class="tab" id = "detection-tab"
+             onclick="patternDetectionTab()">
+            <span class="tab-icon material-symbols-outlined">quick_reference_all</span>
+            <span class="tab-label">Pattern Detection</span>
         </div>
     </div>
 </th:block>

@@ -1,0 +1,100 @@
+
+#event-input {
+    flex: 1; /* instead of width: 100% */
+    min-width: 120px;
+    padding: 10px;
+    font-size: 1rem;
+    border: none;
+    border-bottom: 2px solid #ccc;
+    outline: none;
+}
+
+.dropdown {
+    position: absolute;
+    background: white;
+    border: 1px solid #ccc;
+    max-height: 130px;
+    overflow-y: auto;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    z-index: 10;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+#event-list {
+    top: 100%;
+    left: 0;
+    width: 150px;
+}
+
+#symbol-list {
+    top: 0;
+    left: 150px;
+    width: 60px;
+}
+
+.dropdown li {
+    padding-left: 8px;
+    padding-top: 2px;
+    padding-right: 2px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.dropdown li:hover {
+    background-color: #f0f0f0;
+}
+
+.hidden {
+    display: none;
+}
+
+#tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+
+
+.tag {
+    background-color: #def;
+    padding: 6px 10px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.close-btn {
+    cursor: pointer;
+    font-weight: bold;
+    color: #666;
+}
+
+.close-btn:hover {
+    color: red;
+}
+
+
+#input-row {
+    margin-left: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 6px 0;
+    gap: 6px;
+}
+
+
+#event-list li.active {
+    background-color: #e6f0ff;
+    font-weight: bold;
+}
+
+#input-holder {
+    position: relative;
+    flex-grow: 1;
+    min-width: 150px;
+}

@@ -51,6 +51,13 @@ public class UserInterfaceController {
         return "fragments/query_panels/metadata_panel :: metadata_panel";
     }
 
+    @GetMapping("/fragments/pattern-detection")
+    public String getPatternDetection( Model model) {
+        List<String> lognames = loadInfo.getEventTypes().keySet().stream().toList();
+        model.addAttribute("lognames", lognames);
+        return "fragments/query_panels/pattern_detection_panel :: pattern-detection-panel";
+    }
+
 
 
 

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<div th:fragment="pattern-detection-panel">
+    <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
+        <main class="mdl-layout__content">
+            <div class="mdl-grid">
+                <!--Pattern Definition card-->
+                <div class="mdl-card mdl-shadow--2dp" id="pattern-card">
+                    <div class="section-title">Pattern Definition</div>
+                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label" style="width: 100%">
+                        <select id="logSelector" onchange="loadEventsForLog()" class="mdl-textfield__input">
+                            <option value="" disabled selected>Select a log</option>
+                            <option th:each="log : ${lognames}" th:value="${log}" th:text="${log}"></option>
+                        </select>
+
+                        <div id="pattern-search" class="hidden">
+                            <text>Pattern</text>
+                            <div th:replace="~{components/event_search_bar :: event_search_bar}"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+</div>
