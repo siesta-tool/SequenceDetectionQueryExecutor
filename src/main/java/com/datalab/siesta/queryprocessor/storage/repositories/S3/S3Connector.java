@@ -17,11 +17,15 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.*;
+import static org.apache.spark.sql.functions.col;
+import static org.apache.spark.sql.functions.map_from_arrays;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Service;
+
 
 import java.io.IOException;
 import java.net.URI;
@@ -100,21 +104,19 @@ public class S3Connector extends SparkDatabaseRepository {
     public List<String> getAttributes(String logname) {
         String path = String.format("%s%s%s", bucket, logname, "/seq.parquet/");
 
-        Dataset<Row> df = sparkSession.read().parquet(path).select("attributes").toDF();
+        Dataset<Row> df = sparkSession.read().parquet(path).toDF();
 
-        System.out.println(df);
+        Set<String> excluded_columns = Set.of("trace_id", "timestamp", "event_type", "position");
 
-        Dataset<Row> keysDf = df.select(functions.explode(functions.map_keys(df.col("attributes"))).alias("key"));
+//        this.readSequenceTableAttributes(logname, Set.of("org:resource"));
 
-        return keysDf.dropDuplicates()
-                .collectAsList()
-                .stream()
-                .map(row -> row.getString(0)) // Extract string from Row
-                .collect(Collectors.toList());
+        return Arrays.stream(df.columns())
+                .filter(col -> !excluded_columns.contains(col))
+                .toList();
     }
 
     @Override
-    protected Dataset<EventModelAttributes> readSequenceTable(String logname){
+    protected Dataset<EventModel> readSequenceTable(String logname){
         Dataset<Row> df;
         try{
             String path = String.format("%s%s%s", bucket, logname, "/seq.parquet/");
@@ -124,7 +126,40 @@ public class S3Connector extends SparkDatabaseRepository {
             df = sparkSession.read().format("delta").load(path)
                     .withColumnRenamed("trace","trace_id");
         }
-        Dataset<EventModelAttributes> eventsDF = df
+        Dataset<EventModel> eventsDF = df
+                .selectExpr(
+                        "trace_id as traceId",
+                        "event_type as eventName",
+                        "CAST(timestamp AS STRING) as timestamp",  // Ensure timestamp is correctly formatted
+                        "position"
+                )
+                .as(Encoders.bean(EventModel.class));
+        return eventsDF;
+    }
+
+    protected Dataset<EventModelAttributes> readSequenceTableAttributes(String logname, Set<String> chosen_attributes){
+        Dataset<Row> df;
+        try{
+            String path = String.format("%s%s%s", bucket, logname, "/seq.parquet/");
+            df = sparkSession.read().parquet(path);
+        }catch (Exception e){
+            String path = String.format("%s%s%s", bucket, logname, "/seq/");
+            df = sparkSession.read().format("delta").load(path)
+                    .withColumnRenamed("trace","trace_id");
+        }
+
+        List<Column> mapColumns = new ArrayList<>();
+
+        for (String attribute : chosen_attributes) {
+            mapColumns.add(functions.lit(attribute));
+            mapColumns.add(functions.col(attribute));
+        }
+
+        Column attributes = functions.map(mapColumns.toArray(new Column[0]));
+
+        Dataset<Row> attributesDF = df.withColumn("attributes", attributes);
+
+        Dataset<EventModelAttributes> eventsDF = attributesDF
                 .selectExpr(
                         "trace_id as traceId",
                         "event_type as eventName",

@@ -161,7 +161,7 @@ public class QueryPlanPatternDetection implements QueryPlan {
             List<Count> sortedPairs = this.getStats(pairs.getAllPairs(), qpdw.getLog_name());
             List<Tuple2<EventPair, Count>> combined = this.combineWithPairs(pairs.getAllPairs(), sortedPairs);
             // run pattern detection for each potential pattern (multiple patterns when or is used)
-            IndexMiddleResult imrTemp = dbConnector.patterDetectionTraceIds(qpdw.getLog_name(), combined, metadata, pairs, qpdw.getFrom(), qpdw.getTill());
+            IndexMiddleResult imrTemp = dbConnector.patterDetectionTraceIds(qpdw.getLog_name(), combined, metadata, pairs, qpdw.getFrom(), qpdw.getTill(), null);
             if (imr == null) {
                 imr = imrTemp;
             } else {
@@ -262,7 +262,7 @@ public class QueryPlanPatternDetection implements QueryPlan {
     protected Map<String, List<Event>> querySeqDB(List<String> trace_ids, SIESTAPattern pattern,
                                                 String logname, Timestamp from, Timestamp till) {
         Set<String> eventTypes = pattern.getEventTypes();
-        Map<String, List<EventBoth>> fromDB = dbConnector.querySeqTable(logname, trace_ids, eventTypes, from, till);
+        Map<String, List<EventBoth>> fromDB = dbConnector.querySeqTable(logname, trace_ids, eventTypes, from, till, null);
         return fromDB.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().stream().map(s -> (Event) s)
                 .collect(Collectors.toList())));

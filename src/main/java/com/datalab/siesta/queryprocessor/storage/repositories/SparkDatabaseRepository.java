@@ -19,6 +19,7 @@ import org.apache.spark.storage.StorageLevel;
 import org.springframework.beans.factory.annotation.Autowired;
 import scala.Tuple2;
 
+import javax.xml.crypto.Data;
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -50,10 +51,11 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
      * @param logname the log database
      * @return all events in the SequenceTable
      */
-    protected Dataset<EventModelAttributes> readSequenceTable(String logname) {
+    protected Dataset<EventModel> readSequenceTable(String logname) {
         return null;
     }
 
+    protected Dataset<EventModelAttributes> readSequenceTableAttributes(String logname, Set<String> chosen_attributes) {return null;}
     /**
      * Return all events in the SequenceTable as a dataset in order to be filtered latter
      * needs to be implemented by each different connector
@@ -136,9 +138,16 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
      */
     @Override
     public Map<String, List<EventBoth>> querySeqTable(String logname, List<String> traceIds) {
-        Dataset<EventModelAttributes> eventsDF = this.readSequenceTable(logname)
+        Dataset<EventModel> eventsDF = this.readSequenceTable(logname)
                 .filter(functions.col("traceId").isin(traceIds.toArray()));
         return this.transformEventModelToMap(eventsDF.toDF());
+    }
+
+    @Override
+    public Map<String, List<EventBoth>> querySeqTableAttributes(String logname, List<String> traceIds, Set<String> chosen_attributes) {
+        Dataset<EventModelAttributes> eventsDF = this.readSequenceTableAttributes(logname, chosen_attributes)
+                .filter(functions.col("traceId").isin(traceIds.toArray()));
+        return this.transformEventModelAttributesToMap(eventsDF.toDF());
     }
 
     /**
@@ -155,7 +164,27 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
     @Override
     public Map<String, List<EventBoth>> querySeqTable(String logname, List<String> traceIds, Set<String> eventTypes,
                                                       Timestamp from, Timestamp till) {
-        Dataset<EventModelAttributes> eventsDF = this.readSequenceTable(logname);
+        Dataset<EventModel> eventsDF = this.readSequenceTable(logname);
+        //filter based on id and based on eventType
+        eventsDF = eventsDF.filter(functions.col("traceId").isin(traceIds.toArray()))
+                .filter(functions.col("eventName").isin(eventTypes.toArray()));
+        //filter based on the timestamps and the parameters from and till
+        Dataset<Row> filteredTimestamps = eventsDF
+                .withColumn("timestamp-true", functions.col("timestamp").cast("timestamp"));
+        if (from != null) {
+            filteredTimestamps = filteredTimestamps.filter(functions.col("timestamp-true").geq(from));
+        }
+        if (till != null) {
+            filteredTimestamps = filteredTimestamps.filter(functions.col("timestamp-true").leq(till));
+        }
+
+        return this.transformEventModelToMap(filteredTimestamps);
+    }
+
+    @Override
+    public Map<String, List<EventBoth>> querySeqTableAttributes(String logname, List<String> traceIds, Set<String> eventTypes,
+                                                      Timestamp from, Timestamp till, Set<String> chosen_attributes) {
+        Dataset<EventModelAttributes> eventsDF = this.readSequenceTableAttributes(logname, chosen_attributes);
         //filter based on id and based on eventType
         eventsDF = eventsDF.filter(functions.col("traceId").isin(traceIds.toArray()))
                 .filter(functions.col("eventName").isin(eventTypes.toArray()));
@@ -601,9 +630,33 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         Column traceId = functions.col("trace_id");
         Column eventA = functions.col("eventA");
         Column eventB = functions.col("eventB");
-        Column attributesA = functions.col("attributesA");
-        Column attributesB = functions.col("attributesB");
 
+        Set<String> excluded_columns = Set.of("trace_id", "eventA", "eventB", "timestampA", "timestampB", "positionA", "positionB");
+        Set<String> attribute_columns = new HashSet<>(Set.of(indexRows.columns()));
+        attribute_columns.removeAll(excluded_columns);
+
+
+        List<Column> mapColumnsA = new ArrayList<>();
+        List<Column> mapColumnsB = new ArrayList<>();
+
+        for (String attribute : attribute_columns) {
+            if (attribute.contains("_A")) {
+                mapColumnsA.add(functions.lit(attribute));
+                mapColumnsA.add(functions.col(attribute));
+            }
+            if (attribute.contains("_B")) {
+                mapColumnsB.add(functions.lit(attribute));
+                mapColumnsB.add(functions.col(attribute));
+            }
+        }
+
+        Column attributesA = functions.map(mapColumnsA.toArray(new Column[0]));
+        Column attributesB = functions.map(mapColumnsB.toArray(new Column[0]));
+
+        Dataset<Row> attributesDF = indexRows.withColumn("attributesA", attributesA).withColumn("attributesB", attributesB);
+
+        attributesA = functions.col("attributesA");
+        attributesB = functions.col("attributesB");
 
         //here is the filtering for the till and from if the indexing has been done using timestamp
         if (hasTimestampA && hasTimestampB) {
@@ -613,7 +666,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
         Column positionA = hasPositionA ? functions.col("positionA") : functions.lit(null).cast("int");
         Column positionB = hasPositionB ? functions.col("positionB") : functions.lit(null).cast("int");
 
-        Dataset<IndexPair> indexPairDataset = indexRows.select(traceId, eventA, eventB, timestampA.alias("timestampA"),
+        Dataset<IndexPair> indexPairDataset = attributesDF.select(traceId, eventA, eventB, timestampA.alias("timestampA"),
                         timestampB.alias("timestampB"), positionA.alias("positionA"),
                         positionB.alias("positionB"), attributesA, attributesB)
                 .as(Encoders.bean(IndexPair.class));
@@ -676,7 +729,19 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
     //Below are for Declare//
     @Override
     public Dataset<Trace> querySequenceTableDeclare(String logname) {
-        Dataset<EventModelAttributes> eventDF = this.readSequenceTable(logname);
+        Dataset<EventModel> eventDF = this.readSequenceTable(logname);
+        Dataset<Trace> groupedDF = eventDF
+                .groupBy("traceId")// Group by trace_id and collect events into a list
+                .agg(functions.collect_list(functions
+                                .struct("eventName", "traceID", "timestamp", "position"))
+                        .alias("events"))
+                .as(Encoders.bean(Trace.class));
+        return groupedDF;
+    }
+
+    @Override
+    public Dataset<Trace> querySequenceTableDeclareAttributes(String logname, Set<String> chosen_attributes) {
+        Dataset<EventModelAttributes> eventDF = this.readSequenceTableAttributes(logname, chosen_attributes);
         Dataset<Trace> groupedDF = eventDF
                 .groupBy("traceId")// Group by trace_id and collect events into a list
                 .agg(functions.collect_list(functions

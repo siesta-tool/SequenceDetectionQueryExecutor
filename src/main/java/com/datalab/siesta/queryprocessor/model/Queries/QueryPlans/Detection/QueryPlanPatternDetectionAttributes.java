@@ -1,37 +1,18 @@
 package com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.Detection;
 
 import com.datalab.siesta.queryprocessor.SaseConnection.SaseConnector;
-import com.datalab.siesta.queryprocessor.model.Constraints.Constraint;
-import com.datalab.siesta.queryprocessor.model.Constraints.GapConstraint;
-import com.datalab.siesta.queryprocessor.model.Constraints.TimeConstraint;
-import com.datalab.siesta.queryprocessor.model.DBModel.Count;
-import com.datalab.siesta.queryprocessor.model.DBModel.IndexMiddleResult;
-import com.datalab.siesta.queryprocessor.model.DBModel.Metadata;
-import com.datalab.siesta.queryprocessor.model.Events.Event;
 import com.datalab.siesta.queryprocessor.model.Events.EventBoth;
-import com.datalab.siesta.queryprocessor.model.Events.EventPair;
-import com.datalab.siesta.queryprocessor.model.ExtractedPairsForPatternDetection;
 import com.datalab.siesta.queryprocessor.model.Occurrence;
 import com.datalab.siesta.queryprocessor.model.Occurrences;
-import com.datalab.siesta.queryprocessor.model.Patterns.SIESTAPattern;
-import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.QueryPlan;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponse;
-import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponseBadRequestForDetection;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponsePatternDetection;
-import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryPatternDetectionWrapper;
 import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryWrapper;
-import com.datalab.siesta.queryprocessor.model.TimeStats;
 import com.datalab.siesta.queryprocessor.model.Utils.Utils;
 import com.datalab.siesta.queryprocessor.storage.DBConnector;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springdoc.core.converters.ResponseSupportConverter;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.RequestScope;
-import scala.Tuple2;
 
-import java.sql.Timestamp;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -73,12 +54,19 @@ public class QueryPlanPatternDetectionAttributes extends QueryPlanPatternDetecti
                 .map(EventBoth::getName)
                 .collect(Collectors.toSet());
 
+        Set<String> allKeys = new HashSet<>();
+
+        for (Map<String, String> innerMap : attributes.values()) {
+            allKeys.addAll(innerMap.keySet());
+        }
+
         Map<String, List<EventBoth>> result = dbConnector.querySeqTable(
                 this.metadata.getLogname(),
                 new ArrayList<>(traceIds),
                 eventTypes,
                 null,
-                null
+                null,
+                allKeys
         );
 
         // Update the occurrences with the results
