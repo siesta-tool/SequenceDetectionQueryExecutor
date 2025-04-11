@@ -1,13 +1,6 @@
 
-function startRefresh() {
-    const btn = document.getElementById("refresh-btn");
-    const spinner = document.getElementById("spinner");
-
-    // Hide button, show spinner
-    btn.style.display = "none";
-    spinner.classList.add("is-active");
-
-    fetch('/refreshData')
+function refreshMetadata() {
+    return fetch('/refreshData')
         .then(() => {
             return fetch(`/fragments/sidebar-tabs`)
         })
@@ -19,10 +12,6 @@ function startRefresh() {
             console.error("Error during refresh:", error);
             alert("Failed to refresh data.");
         })
-        .finally(() => {
-            spinner.classList.remove("is-active");
-            btn.style.display = "inline-block";
-        });
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -62,6 +51,9 @@ function patternDetectionTab(){
         .then(html => {
             const container = document.getElementById("main-panel");
             container.innerHTML = html;
+            if (typeof componentHandler !== 'undefined') {
+                componentHandler.upgradeDom();
+            }
 
             // Dynamically import the JS module and initialize
             import('/js/components/event_search_bar.js')
@@ -70,10 +62,12 @@ function patternDetectionTab(){
                 })
                 .catch(err => console.error('Failed to load module:', err));
 
+
         })
         .catch(err => {
             console.error("Failed to load pattern detection", err);
         });
+
 }
 
 function metadataLog(logname) {

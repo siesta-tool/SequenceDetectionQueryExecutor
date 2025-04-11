@@ -1,0 +1,17 @@
+.refresh-container {
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.refresh-container .spinner {
+    width: 24px;
+    height: 24px;
+    display: inline-block;
+    margin-left: 0.5rem;
+    visibility: hidden;
+}
+
+.refresh-container .spinner.is-active {
+    visibility: visible;
+}

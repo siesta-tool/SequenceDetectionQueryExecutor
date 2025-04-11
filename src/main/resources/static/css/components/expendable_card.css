@@ -1,0 +1,43 @@
+.expandable-card.collapsed{
+    height: 60px;
+    min-height: 60px;
+}
+
+.expandable-card{
+    height:fit-content;
+    width: 100%;
+}
+
+.expandable-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background-color: white;
+}
+
+
+.left-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem; /* space between title and refresh icon */
+}
+
+.left-content > * {
+    align-self: center !important;
+}
+
+.refresh-icon {
+    cursor: pointer;
+    font-size: 24px;
+}
+
+
+
+.expandable-header .mdl-card__title-text{
+    font-size: 20px;
+}
+
+.expandable-card.collapsed .expandable-content{
+    height:0;
+}

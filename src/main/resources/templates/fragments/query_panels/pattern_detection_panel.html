@@ -20,6 +20,27 @@
                     </div>
                 </div>
 
+<!--                Pattern Stats-->
+                <th:block th:replace="~{components/expandable_card.html :: expandable_card(
+                        'pattern-stats',
+                        'Pattern Stats',
+                        ~{fragments/card_content/pattern_detection_cards.html::patternStatsContent},
+                        true,
+                        'myCustomRefresh'
+                    )}"/>
+
+
+                <!-- Filters card -->
+                <th:block th:replace="~{components/expandable_card.html :: expandable_card(
+                    'pattern-filters',
+                    'Filters',
+                    ~{fragments/card_content/pattern_detection_cards.html::filtersCardContent},
+                    false,
+                    null
+                )}" />
+
+
+
             </div>
         </main>
     </div>

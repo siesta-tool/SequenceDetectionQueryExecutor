@@ -12,13 +12,7 @@
         <div class="center">
             <div class="sidebar-categories">
                 <p class="title button-container-item">Log Databases</p>
-                <div class="refresh-container">
-                    <button id="refresh-btn" class="mdl-button mdl-js-button mdl-button--icon"
-                            style="color: #3F51B5;" onclick="startRefresh()">
-                        <i class="material-icons">refresh</i>
-                    </button>
-                    <div id="spinner" class="mdl-spinner mdl-js-spinner mdl-spinner--single-color"></div>
-                </div>
+                <div th:replace="~{components/refresh_button.html :: refreshButton('refreshMetadata')}"></div>
             </div>
             <div id="sidebar-tabs"></div>
             </div>
