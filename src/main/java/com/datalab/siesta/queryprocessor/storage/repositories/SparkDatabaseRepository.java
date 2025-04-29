@@ -306,11 +306,46 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
                 .map(x -> String.format("(eventA = '%s' AND eventB = '%s')", x.getEventA(), x.getEventB()))
                 .collect(Collectors.joining(" OR "));
 
+        String attributeFilter = trueEventPairs.stream()
+                .map(x -> {
+                    // Construct conditions for attributes of Event A
+                    String eventAConditions = x.getEventA().getEventBoth().getAttributes().entrySet().stream()
+                            .map(entry -> String.format("attributesA['%s_A'] = '%s'", entry.getKey(), entry.getValue()))
+                            .collect(Collectors.joining(" AND "));
+
+                    // Construct conditions for attributes of Event B
+                    String eventBConditions = x.getEventB().getEventBoth().getAttributes().entrySet().stream()
+                            .map(entry -> String.format("attributesB['%s_B'] = '%s'", entry.getKey(), entry.getValue()))
+                            .collect(Collectors.joining(" AND "));
+
+                    // Combine the conditions for Event A and Event B with positions
+                    String filter = "";
+                    if (!eventAConditions.isEmpty()) {
+                        filter += String.format("(%s", eventAConditions);
+                        if (!eventBConditions.isEmpty()) {
+                            filter += " AND ";
+                            filter += String.format("%s)", eventBConditions);
+                        }
+                        else
+                            filter += ")";
+                    }
+                    else
+                        if (!eventBConditions.isEmpty()) {
+                            filter += String.format("(%s)", eventBConditions);
+                        }
+                    return filter;
+                })
+                .collect(Collectors.joining(" OR "));
+
+                if (attributeFilter.equals(" OR ") || attributeFilter.isEmpty()) {
+                    attributeFilter = "TRUE";
+                }
         // Next sequence extract the ids of the traces that contains all the required et-pairs (iun the truePairs list)
         List<String> listOfTraces = pairs
-                .select("eventA", "eventB", "trace_id") // Maintain the required fields
-                .distinct() // Remove duplicates
-                .where(eventFilter) // Maintain only the et-pairs in the true pairs
+                .select("eventA", "eventB", "attributesA", "attributesB", "trace_id") // Maintain the required fields
+                .dropDuplicates("eventA", "eventB", "trace_id") // Remove duplicates
+                .where(eventFilter)
+                .where(attributeFilter)
                 .groupBy("trace_id") // Group based on the trace id
                 .agg(functions.count("*").alias("valid_et_pairs")) // Count how many of the valid pairs each trace has
                 .filter(functions.col("valid_et_pairs").equalTo(truePairs.size()))// Keeps thr traces that have all valid et-pairs

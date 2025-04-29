@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 
 import java.io.Serializable;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -19,6 +20,8 @@ public class Event implements Serializable, Comparable, Cloneable {
 
     protected String traceID;
 
+    protected Map<String, String> attributes;
+
     public Event() {
         this.name="";
     }
@@ -30,6 +33,11 @@ public class Event implements Serializable, Comparable, Cloneable {
     public Event(String name, String traceID) {
         this.name = name;
         this.traceID = traceID;
+    }
+
+    public Event(String name, Map<String, String> attributes) {
+        this.name = name;
+        this.attributes = attributes;
     }
 
     public String getName() {
