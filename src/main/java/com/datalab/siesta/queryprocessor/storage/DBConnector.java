@@ -102,12 +102,12 @@ public class DBConnector {
      * @param pairs             the event pairs extracted from the query
      * @param from              the starting timestamp, set to null if not used
      * @param till              the ending timestamp, set to null if not used
-     * @param chosen_attributes
+     * @param equal_attributes  the attributes that must be equal for the given query
      * @return the traces that contain all the pairs. It will be then processed by SASE in order to remove false
      * positives.
      */
-    public IndexMiddleResult patterDetectionTraceIds(String logname, List<Tuple2<EventPair, Count>> combined, Metadata metadata, ExtractedPairsForPatternDetection pairs, Timestamp from, Timestamp till, Set<String> chosen_attributes) {
-        return db.patterDetectionTraceIds(logname, combined, metadata, pairs, from, till);
+    public IndexMiddleResult patterDetectionTraceIds(String logname, List<Tuple2<EventPair, Count>> combined, Metadata metadata, ExtractedPairsForPatternDetection pairs, Timestamp from, Timestamp till, Set<String> equal_attributes) {
+        return db.patterDetectionTraceIds(logname, combined, metadata, pairs, from, till, equal_attributes);
     }
 
     /**

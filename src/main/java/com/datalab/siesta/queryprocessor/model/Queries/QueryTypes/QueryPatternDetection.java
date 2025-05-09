@@ -1,6 +1,7 @@
 package com.datalab.siesta.queryprocessor.model.Queries.QueryTypes;
 
 import com.datalab.siesta.queryprocessor.model.DBModel.Metadata;
+import com.datalab.siesta.queryprocessor.model.Events.EventSymbol;
 import com.datalab.siesta.queryprocessor.model.ExtractedPairsForPatternDetection;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.Detection.*;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.QueryPlan;
@@ -12,7 +13,9 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Pattern Detection: Based on the characteristics of the query pattern this class determines which query plan will
@@ -53,9 +56,16 @@ public class QueryPatternDetection implements Query {
     @Override
     public QueryPlan createQueryPlan(QueryWrapper qw, Metadata m) {
         QueryPatternDetectionWrapper qpdw = (QueryPatternDetectionWrapper) qw;
+        Map<Integer, Map<String,String>> attributes = new HashMap<Integer, Map<String,String>>();
+        for (EventSymbol event : qpdw.getPattern().getEventsWithSymbols()){
+            if (event.getAttributes() != null)
+                attributes.put(event.getPosition(), event.getAttributes());
+        }
+        qpdw.setAttributes(attributes);
 
         boolean fromOrTillSet = qpdw.getFrom() != null || qpdw.getTill() != null;
         List<ExtractedPairsForPatternDetection> pairs = qpdw.getPattern().extractPairsForPatternDetection(fromOrTillSet);
+
 
         if(pairs.isEmpty() || pairs.get(0).getTruePairs().isEmpty()){ //either is empty or there is no true pairs
             qpds.setEventTypesInLog(qpdw.getPattern().getEventTypes());
@@ -75,6 +85,7 @@ public class QueryPatternDetection implements Query {
         else if (qpdw.getAttributes() != null && !qpdw.getAttributes().isEmpty()) {
             qpda.setEventTypesInLog(qpdw.getPattern().getEventTypes());
             qpda.setAttributes(qpdw.getAttributes());
+            qpda.setEqualAttributes(qpdw.getEqualAttributes());
             qpda.setMetadata(m);
             return qpda;
         }

@@ -104,7 +104,7 @@ public interface DatabaseRepository {
      * @return the traces that contain all the pairs. It will be then processed by SASE in order to remove false
      * positives.
      */
-    IndexMiddleResult patterDetectionTraceIds(String logname, List<Tuple2<EventPair, Count>> combined, Metadata metadata, ExtractedPairsForPatternDetection pairs, Timestamp from, Timestamp till);
+    IndexMiddleResult patterDetectionTraceIds(String logname, List<Tuple2<EventPair, Count>> combined, Metadata metadata, ExtractedPairsForPatternDetection pairs, Timestamp from, Timestamp till, Set<String> equal_attributes);
 
    /**
      * Retrieves data from the primary inverted index

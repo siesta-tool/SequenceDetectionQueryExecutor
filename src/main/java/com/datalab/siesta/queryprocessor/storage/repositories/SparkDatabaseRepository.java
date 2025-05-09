@@ -298,7 +298,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
      * @param trueEventPairs the pairs that required to appear in a trace in order to be a candidate
      * @return the candidate trace ids
      */
-    protected List<String> getCommonIds(Dataset<IndexPair> pairs, Set<EventPair> trueEventPairs) {
+    protected List<String> getCommonIds(Dataset<IndexPair> pairs, Set<EventPair> trueEventPairs, Set<String> equal_attributes) {
         Set<EventTypes> truePairs = trueEventPairs.stream()
                 .map(x -> new EventTypes(x.getEventA().getName(), x.getEventB().getName()))
                 .collect(Collectors.toSet());
@@ -335,23 +335,43 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
                         }
                     return filter;
                 })
+                .filter(x -> !x.isEmpty())
                 .collect(Collectors.joining(" OR "));
 
-                if (attributeFilter.equals(" OR ") || attributeFilter.isEmpty()) {
-                    attributeFilter = "TRUE";
-                }
-        // Next sequence extract the ids of the traces that contains all the required et-pairs (iun the truePairs list)
-        List<String> listOfTraces = pairs
+        if (attributeFilter.equals(" OR ") || attributeFilter.isEmpty()) {
+            attributeFilter = "TRUE";
+        }
+
+        String equalAttributesFilter = "TRUE";
+
+        if (equal_attributes != null && !equal_attributes.isEmpty()) {
+            equalAttributesFilter = equal_attributes.stream()
+                    .map(x -> String.format("(attributesA['%s_A'] = attributesB['%s_B'])", x, x))
+                    .collect(Collectors.joining(" OR "));
+        }
+
+        Dataset<Row> filteredPairs = pairs
                 .select("eventA", "eventB", "attributesA", "attributesB", "trace_id") // Maintain the required fields
                 .dropDuplicates("eventA", "eventB", "trace_id") // Remove duplicates
-                .where(eventFilter)
+                .where(eventFilter);
+
+        Dataset<Row> validTraces = filteredPairs
+                .groupBy("trace_id")
+                .agg(functions.count("*").alias("valid_et_pairs"))
+                .filter(functions.col("valid_et_pairs").equalTo(truePairs.size()))
+                .select("trace_id");
+
+
+        // Next sequence extract the ids of the traces that contains all the required et-pairs (iun the truePairs list)
+        List<String> listOfTraces = filteredPairs
+                .join(validTraces,"trace_id","semi")
                 .where(attributeFilter)
-                .groupBy("trace_id") // Group based on the trace id
-                .agg(functions.count("*").alias("valid_et_pairs")) // Count how many of the valid pairs each trace has
-                .filter(functions.col("valid_et_pairs").equalTo(truePairs.size()))// Keeps thr traces that have all valid et-pairs
+                .where(equalAttributesFilter)
                 .select("trace_id") // Return the trace_ids
+                .distinct()
                 .as(Encoders.STRING()) //Transform to string
                 .collectAsList(); //Collect as List
+
         return listOfTraces;
     }
 
@@ -450,11 +470,11 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
      */
     @Override
     public IndexMiddleResult patterDetectionTraceIds(String logname, List<Tuple2<EventPair, Count>> combined, Metadata metadata,
-                                                     ExtractedPairsForPatternDetection expairs, Timestamp from, Timestamp till) {
+                                                     ExtractedPairsForPatternDetection expairs, Timestamp from, Timestamp till, Set<String> equal_attributes) {
         Set<EventPair> pairs = combined.stream().map(x -> x._1).collect(Collectors.toSet());
         Dataset<IndexPair> indexPairs = this.getAllEventPairs(pairs, logname, metadata, from, till);
         indexPairs.persist(StorageLevel.MEMORY_AND_DISK());
-        List<String> traces = this.getCommonIds(indexPairs, expairs.getTruePairs());
+        List<String> traces = this.getCommonIds(indexPairs, expairs.getTruePairs(), equal_attributes);
         IndexMiddleResult imr = this.addFilterIds(indexPairs, traces, from, till);
         indexPairs.unpersist();
         return imr;
