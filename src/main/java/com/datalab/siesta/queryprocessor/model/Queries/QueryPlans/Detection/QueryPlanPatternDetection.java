@@ -398,12 +398,16 @@ public class QueryPlanPatternDetection implements QueryPlan {
         //Find if required attributes do not exist in db
         List<String> nonExistingAttributes = new ArrayList<>();
         Set<String> requiredAttributes = new HashSet<>();
-        requiredAttributes.addAll(queryPatternDetectionWrapper.getEqualAttributes().keySet());
-        requiredAttributes.addAll(queryPatternDetectionWrapper.getAttributes()
-                .values()
-                .stream()
-                .flatMap(innerMap -> innerMap.keySet().stream())
-                .collect(Collectors.toSet()));
+        if (queryPatternDetectionWrapper.getEqualAttributes() != null) {
+            requiredAttributes.addAll(queryPatternDetectionWrapper.getEqualAttributes().keySet());
+        }
+        if (queryPatternDetectionWrapper.getAttributes() != null) {
+            requiredAttributes.addAll(queryPatternDetectionWrapper.getAttributes()
+                    .values()
+                    .stream()
+                    .flatMap(innerMap -> innerMap.keySet().stream())
+                    .collect(Collectors.toSet()));
+        }
         Set<String> existingAttributes = this.eventAttributesInLog;
         for (String attribute : requiredAttributes)
         {
@@ -418,11 +422,12 @@ public class QueryPlanPatternDetection implements QueryPlan {
 
         List<String> attributesExceedingPatternSize = new ArrayList<>();
         int patternSize = queryPatternDetectionWrapper.getPattern().getSize();
-        for (Map.Entry<String, List<Integer>> entry : equalAttributes.entrySet())
-        {
-            if (entry.getValue().size() > patternSize)
-                attributesExceedingPatternSize.add(entry.getKey());
-        }
+        if (equalAttributes != null)
+            for (Map.Entry<String, List<Integer>> entry : equalAttributes.entrySet())
+            {
+                if (entry.getValue().size() > patternSize)
+                    attributesExceedingPatternSize.add(entry.getKey());
+            }
 
         if (!attributesExceedingPatternSize.isEmpty()) {
             qr.setAttributesExceedingPatternSize(attributesExceedingPatternSize);

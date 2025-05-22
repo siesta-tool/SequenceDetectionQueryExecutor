@@ -102,10 +102,16 @@ public class S3Connector extends SparkDatabaseRepository {
 
     @Override
     public List<String> getAttributes(String logname) {
-        String path = String.format("%s%s%s", bucket, logname, "/seq.parquet/");
+        Dataset<Row> df;
+        try {
+            String path = String.format("%s%s%s", bucket, logname, "/seq.parquet/");
 
-        Dataset<Row> df = sparkSession.read().parquet(path).toDF();
-
+            df = sparkSession.read().parquet(path).toDF();
+        } catch (Exception e){
+        String path = String.format("%s%s%s", bucket, logname, "/seq/");
+        df = sparkSession.read().format("delta").load(path)
+                .withColumnRenamed("trace","trace_id");
+        }
         Set<String> excluded_columns = Set.of("trace_id", "timestamp", "event_type", "position");
 
 //        this.readSequenceTableAttributes(logname, Set.of("org:resource"));

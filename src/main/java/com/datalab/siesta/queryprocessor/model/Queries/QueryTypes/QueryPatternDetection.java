@@ -58,7 +58,7 @@ public class QueryPatternDetection implements Query {
         QueryPatternDetectionWrapper qpdw = (QueryPatternDetectionWrapper) qw;
         Map<Integer, Map<String,String>> attributes = new HashMap<Integer, Map<String,String>>();
         for (EventSymbol event : qpdw.getPattern().getEventsWithSymbols()){
-            if (event.getAttributes() != null)
+            if (event.getAttributes() != null && !event.getAttributes().isEmpty())
                 attributes.put(event.getPosition(), event.getAttributes());
         }
         qpdw.setAttributes(attributes);
@@ -82,7 +82,7 @@ public class QueryPatternDetection implements Query {
             qppdg.setEventTypesInLog(qpdw.getPattern().getEventTypes());
             return qppdg;
         }
-        else if (qpdw.getAttributes() != null && !qpdw.getAttributes().isEmpty()) {
+        else if ((qpdw.getAttributes() != null && !qpdw.getAttributes().isEmpty()) || (qpdw.getEqualAttributes() != null && !qpdw.getEqualAttributes().isEmpty())) {
             qpda.setEventTypesInLog(qpdw.getPattern().getEventTypes());
             qpda.setAttributes(qpdw.getAttributes());
             qpda.setEqualAttributes(qpdw.getEqualAttributes());

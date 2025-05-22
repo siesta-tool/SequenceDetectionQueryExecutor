@@ -436,10 +436,11 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
                                                     eventRow.getJavaMap(4) // attributes
                                             );
                                         } else {
-                                            return new EventTs(
+                                            return new EventBoth(
                                                     eventRow.getString(1), // eventName
                                                     eventRow.getString(0), // traceId
                                                     Timestamp.valueOf(eventRow.getString(3)), // timestamp
+                                                    eventRow.getInt(2), // position
                                                     eventRow.getJavaMap(4) // attributes
                                             );
                                         }
