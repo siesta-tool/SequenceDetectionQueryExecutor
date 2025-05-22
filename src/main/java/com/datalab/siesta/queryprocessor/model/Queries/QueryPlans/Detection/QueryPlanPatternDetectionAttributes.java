@@ -163,7 +163,7 @@ public class QueryPlanPatternDetectionAttributes extends QueryPlanPatternDetecti
                 String attributeValue = events.get(equalPositions.get(0)).getAttributes().get(attributeKey);
                 for (int position : equalPositions) {
                     EventBoth event = events.get(position);
-                    if (!event.getAttributes().get(attributeKey).equals(attributeValue)) {
+                    if (event.getAttributes() == null || event.getAttributes().get(attributeKey) == null || !event.getAttributes().get(attributeKey).equals(attributeValue)) {
                         return false;
                     }
                 }
