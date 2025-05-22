@@ -69,6 +69,18 @@ public class EventBoth extends EventTs implements Comparable, Serializable {
     public SaseEvent transformSaseEvent(int position) {
         SaseEvent se = super.transformSaseEvent(position);
         se.setTimestamp((int) this.timestamp.getTime() / 1000); // Transform to seconds
+        se.setPosition(position);
+        return se;
+    }
+
+    @Override
+    @JsonIgnore
+    public SaseEvent transformSaseEvent(int position, long minTs) {
+        SaseEvent se = super.transformSaseEvent(position);
+        se.setPosition(position);
+        se.setTimestamp((int) this.timestamp.getTime() / 1000);
+        se.setTimestampSet(true);
+        se.setMinTs(minTs);
         return se;
     }
 

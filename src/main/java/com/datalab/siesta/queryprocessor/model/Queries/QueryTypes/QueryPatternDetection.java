@@ -72,9 +72,10 @@ public class QueryPatternDetection implements Query {
             qppdg.setEventTypesInLog(qpdw.getPattern().getEventTypes());
             return qppdg;
         }
-        else if (qpdw.getAttributes() != null && !qpdw.getAttributes().isEmpty()) {
+        else if ((qpdw.getAttributes() != null && !qpdw.getAttributes().isEmpty()) || (qpdw.getEqualAttributes() != null && !qpdw.getEqualAttributes().isEmpty())) {
             qpda.setEventTypesInLog(qpdw.getPattern().getEventTypes());
             qpda.setAttributes(qpdw.getAttributes());
+            qpda.setEqualAttributes(qpdw.getEqualAttributes());
             qpda.setMetadata(m);
             return qpda;
         }

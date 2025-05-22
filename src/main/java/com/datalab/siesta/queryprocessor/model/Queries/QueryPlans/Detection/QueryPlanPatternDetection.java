@@ -22,6 +22,7 @@ import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryWrapper;
 import com.datalab.siesta.queryprocessor.model.TimeStats;
 import com.datalab.siesta.queryprocessor.model.Utils.Utils;
 import com.datalab.siesta.queryprocessor.storage.DBConnector;
+import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,20 +68,27 @@ public class QueryPlanPatternDetection implements QueryPlan {
     /**
      * A set of all the event types in this log database.
      */
+    @Setter
     protected Set<String> eventTypesInLog;
 
     /**
-     * A hash map containing all the attribute filters of the query.
+     * A set of all the event attributes in this log database.
      */
+    @Setter
+    protected Set<String> eventAttributesInLog;
+
+    /**
+     * A map containing all the attribute filters of the query.
+     */
+    @Setter
     protected Map<Integer, Map<String, String>> attributes;
 
-    public void setAttributes(Map<Integer, Map<String, String>> attributes) {
-        this.attributes = attributes;
-    }
+    /**
+     * A map containing all the attribute equality filters of the query
+     */
+    @Setter
+    protected Map<String, List<Integer>> equalAttributes;
 
-    public void setEventTypesInLog(Set<String> eventTypesInLog) {
-        this.eventTypesInLog = eventTypesInLog;
-    }
 
     public IndexMiddleResult getImr() { //no need for this is just for testing
         return imr;
@@ -116,6 +124,7 @@ public class QueryPlanPatternDetection implements QueryPlan {
         long start = System.currentTimeMillis();
         QueryPatternDetectionWrapper qpdw = (QueryPatternDetectionWrapper) qw;
         QueryResponseBadRequestForDetection firstCheck = new QueryResponseBadRequestForDetection();
+        this.setEventAttributesInLog(new HashSet<>(dbConnector.getAttributes(qpdw.getLog_name())));
         this.getMiddleResults(qpdw, firstCheck);
         Logger logger = LoggerFactory.getLogger(QueryPlanPatternDetection.class);
         logger.info(String.format("Retrieve event pairs: %d ms", System.currentTimeMillis() - start));

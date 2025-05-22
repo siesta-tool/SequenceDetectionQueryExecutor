@@ -124,6 +124,10 @@ public class DBConnector {
         return db.querySeqTable(logname, traceIds, eventTypes, from, till);
     }
 
+    public Map<String, List<EventBoth>> querySeqTable(String logname, List<String> traceIds, Set<String> eventTypes, Timestamp from, Timestamp till, Set<String> chosen_attributes) {
+        return db.querySeqTableAttributes(logname, traceIds, eventTypes, from, till, chosen_attributes);
+    }
+
     /**
      * Retrieves event from the SingleTable and group them based on the traceID
      * @param logname the log database

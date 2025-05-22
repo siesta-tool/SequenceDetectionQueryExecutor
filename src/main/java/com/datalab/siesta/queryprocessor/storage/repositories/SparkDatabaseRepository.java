@@ -46,7 +46,11 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
      * @param logname the log database
      * @return all events in the SequenceTable
      */
-    protected Dataset<EventModelAttributes> readSequenceTable(String logname) {
+    protected Dataset<EventModel> readSequenceTable(String logname) {
+        return null;
+    }
+
+    protected Dataset<EventModelAttributes> readSequenceTableAttributes(String logname, Set<String> chosen_attributes) {
         return null;
     }
 
@@ -132,9 +136,16 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
      */
     @Override
     public Map<String, List<EventBoth>> querySeqTable(String logname, List<String> traceIds) {
-        Dataset<EventModelAttributes> eventsDF = this.readSequenceTable(logname)
+        Dataset<EventModel> eventsDF = this.readSequenceTable(logname)
                 .filter(functions.col("traceId").isin(traceIds.toArray()));
         return this.transformEventModelToMap(eventsDF.toDF());
+    }
+
+    @Override
+    public Map<String, List<EventBoth>> querySeqTableAttributes(String logname, List<String> traceIds, Set<String> chosen_attributes) {
+        Dataset<EventModelAttributes> eventsDF = this.readSequenceTableAttributes(logname, chosen_attributes)
+                .filter(functions.col("traceId").isin(traceIds.toArray()));
+        return this.transformEventModelAttributesToMap(eventsDF.toDF());
     }
 
     /**
@@ -151,7 +162,27 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
     @Override
     public Map<String, List<EventBoth>> querySeqTable(String logname, List<String> traceIds, Set<String> eventTypes,
                                                       Timestamp from, Timestamp till) {
-        Dataset<EventModelAttributes> eventsDF = this.readSequenceTable(logname);
+        Dataset<EventModel> eventsDF = this.readSequenceTable(logname);
+        //filter based on id and based on eventType
+        eventsDF = eventsDF.filter(functions.col("traceId").isin(traceIds.toArray()))
+                .filter(functions.col("eventName").isin(eventTypes.toArray()));
+        //filter based on the timestamps and the parameters from and till
+        Dataset<Row> filteredTimestamps = eventsDF
+                .withColumn("timestamp-true", functions.col("timestamp").cast("timestamp"));
+        if (from != null) {
+            filteredTimestamps = filteredTimestamps.filter(functions.col("timestamp-true").geq(from));
+        }
+        if (till != null) {
+            filteredTimestamps = filteredTimestamps.filter(functions.col("timestamp-true").leq(till));
+        }
+
+        return this.transformEventModelAttributesToMap(filteredTimestamps);
+    }
+
+    @Override
+    public Map<String, List<EventBoth>> querySeqTableAttributes(String logname, List<String> traceIds, Set<String> eventTypes,
+                                                                Timestamp from, Timestamp till, Set<String> chosen_attributes) {
+        Dataset<EventModelAttributes> eventsDF = this.readSequenceTableAttributes(logname, chosen_attributes);
         //filter based on id and based on eventType
         eventsDF = eventsDF.filter(functions.col("traceId").isin(traceIds.toArray()))
                 .filter(functions.col("eventName").isin(eventTypes.toArray()));
@@ -640,11 +671,11 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
     //Below are for Declare//
     @Override
     public Dataset<Trace> querySequenceTableDeclare(String logname) {
-        Dataset<EventModelAttributes> eventDF = this.readSequenceTable(logname);
+        Dataset<EventModel> eventDF = this.readSequenceTable(logname);
         Dataset<Trace> groupedDF = eventDF
                 .groupBy("traceId")// Group by trace_id and collect events into a list
                 .agg(functions.collect_list(functions
-                                .struct("eventName", "traceID", "timestamp", "position", "attributes"))
+                                .struct("eventName", "traceID", "timestamp", "position"))
                         .alias("events"))
                 .as(Encoders.bean(Trace.class));
         return groupedDF;

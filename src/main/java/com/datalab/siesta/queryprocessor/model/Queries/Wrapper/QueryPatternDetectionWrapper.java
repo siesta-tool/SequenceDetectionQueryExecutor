@@ -9,6 +9,7 @@ import org.apache.hadoop.util.hash.Hash;
 
 import java.sql.Timestamp;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -35,8 +36,10 @@ public class QueryPatternDetectionWrapper extends QueryWrapper {
     @JsonProperty("groups-config")
     private GroupConfig groupConfig;
 
-    @JsonProperty("attributes")
     private Map<Integer, Map<String,String>> attributes;
+
+    @JsonProperty("equal-attributes")
+    private Map<String, List<Integer>> equalAttributes;
 
     private boolean returnAll;
 
@@ -105,6 +108,10 @@ public class QueryPatternDetectionWrapper extends QueryWrapper {
     public Map<Integer, Map<String,String>> getAttributes() {return attributes;}
 
     public void setAttributes(Map<Integer, Map<String,String>> attributes) {this.attributes = attributes;}
+
+    public Map<String, List<Integer>> getEqualAttributes() {return equalAttributes;}
+
+    public void setEqualAttributes(Map<String, List<Integer>> equalAttributes) {this.equalAttributes = equalAttributes;}
 
     public boolean isHasGroups() {
         return hasGroups;
