@@ -18,6 +18,9 @@
 .home-container  .mdl-card {
     width: 100%;
     margin-top: 10px;
+    overflow: visible !important;
+    position: relative !important;
+    z-index: auto;
 }
 
 .home-container .info-grid {
