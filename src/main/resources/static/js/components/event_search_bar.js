@@ -1,4 +1,4 @@
-export function initEventSearchBar() {
+function initEventSearchBar() {
     let currentEvent = null;
 
     const tagsContainer = document.getElementById('tags');
@@ -65,6 +65,8 @@ export function initEventSearchBar() {
     function createTag(event, symbol) {
         const tag = document.createElement('div');
         tag.className = 'tag';
+        tag.dataset.event = event;
+        tag.dataset.symbol = symbol;
 
         const text = document.createElement('span');
         if (symbol === '_') {
@@ -91,4 +93,17 @@ export function initEventSearchBar() {
             dropdownWrapper.classList.add('hidden');
         }
     });
+}
+
+function getAllTagEvents() {
+    const tagsContainer = document.getElementById('tags');
+    const tags = tagsContainer.querySelectorAll('.tag');
+    const events = [];
+
+    tags.forEach(tag => {
+        const event = tag.dataset.event;
+        events.push(event);
+    });
+
+    return events;
 }

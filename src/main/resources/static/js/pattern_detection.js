@@ -27,3 +27,29 @@ function loadEventsForLog() {
             console.error('Error fetching events:', err);
         });
 }
+
+async function loadStatsFragment() {
+    console.log("Loading stats fragment...");
+    function buildStatsPayload() {
+        const logName = document.getElementById('logSelector').value;
+        const eventNames = getAllTagEvents();
+
+        const events = eventNames.map(name => ({ name }));
+
+        return {
+            log_name: logName,
+            pattern: { events }
+        };
+    }
+
+    const payload = buildStatsPayload();
+
+    const response = await fetch("/fragments/pattern-stats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+
+    const html = await response.text();
+    document.getElementById("pattern-stats-fragment").innerHTML = html;
+}

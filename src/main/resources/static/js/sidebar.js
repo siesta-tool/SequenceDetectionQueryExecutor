@@ -58,7 +58,7 @@ function patternDetectionTab(){
             // Dynamically import the JS module and initialize
             import('/js/components/event_search_bar.js')
                 .then(module => {
-                    module.initEventSearchBar(); // safe, scoped, repeatable
+                    initEventSearchBar(); // safe, scoped, repeatable
                 })
                 .catch(err => console.error('Failed to load module:', err));
 

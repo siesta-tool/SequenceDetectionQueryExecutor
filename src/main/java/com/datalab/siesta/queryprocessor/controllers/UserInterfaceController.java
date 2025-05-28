@@ -1,15 +1,19 @@
 package com.datalab.siesta.queryprocessor.controllers;
 
 import com.datalab.siesta.queryprocessor.model.DBModel.Metadata;
+import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.QueryPlan;
+import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponse;
+import com.datalab.siesta.queryprocessor.model.Queries.QueryTypes.QueryStats;
+import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryStatsWrapper;
 import com.datalab.siesta.queryprocessor.services.LoadInfo;
 import com.datalab.siesta.queryprocessor.storage.DBConnector;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.json.MappingJacksonValue;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
@@ -18,11 +22,13 @@ import java.util.Map;
 public class UserInterfaceController {
     private final LoadInfo loadInfo;
     private final DBConnector dbConnector;
+    private final QueryStats qs;
 
     @Autowired
-    public UserInterfaceController(LoadInfo loadInfo, DBConnector dbConnector) {
+    public UserInterfaceController(LoadInfo loadInfo, DBConnector dbConnector, QueryStats qs) {
         this.loadInfo = loadInfo;
         this.dbConnector = dbConnector;
+        this.qs = qs;
     }
 
     @GetMapping("/")
@@ -52,12 +58,24 @@ public class UserInterfaceController {
     }
 
     @GetMapping("/fragments/pattern-detection")
-    public String getPatternDetection( Model model) {
+    public String getPatternDetection(Model model) {
         List<String> lognames = loadInfo.getEventTypes().keySet().stream().toList();
         model.addAttribute("lognames", lognames);
         return "fragments/query_panels/pattern_detection_panel :: pattern-detection-panel";
     }
 
+    @PostMapping("/fragments/pattern-stats")
+    public String getStats(@RequestBody QueryStatsWrapper qsp, Model model) {
+        Metadata m = loadInfo.getMetadata().getOrDefault(qsp.getLog_name(),null);
+        if (m == null) {
+            return "fragments/card_content/pattern_detection_cards:: stats_result";
+        } else {
+            QueryPlan qp = qs.createQueryPlan(qsp, m);
+            QueryResponse qrs = qp.execute(qsp);
+            model.addAttribute("result", qrs);
+            return "fragments/card_content/pattern_detection_cards:: stats_result";
+        }
+    }
 
 
 

@@ -33,11 +33,19 @@
 }
 
 
-
 .expandable-header .mdl-card__title-text{
     font-size: 20px;
 }
 
 .expandable-card.collapsed .expandable-content{
     height:0;
+}
+
+.expandable-card:not(.collapsed) .expandable-content {
+    padding: 8px 0 8px 16px;
+    display: flex;
+    justify-content: center; /* centers the child horizontally */
+    align-items: center;     /* optional: vertical centering */
+    flex-direction: column;  /* stack multiple children vertically */
+    overflow-x:auto;
 }

@@ -19,12 +19,12 @@
 
 </th:block>
 
-<th:block th:fragment="expandable_card(id, title, card_content, hasRefresh, refreshFunction)">
+<th:block th:fragment="expandable_card(id, title, card_content, hasRefresh, refreshFunction, contentId)">
     <div class="mdl-card mdl-shadow--2dp expandable-card collapsed" th:attr="id=${id}">
         <div th:replace="~{components/expandable_card.html :: expandable_card_header(${title}, ${hasRefresh}, ${refreshFunction})}"></div>
         <div class="mdl-card__supporting-text expandable-content">
-            <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                <th:block th:insert="${card_content}" />
+            <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label" th:id="${contentId}">
+                <th:block th:insert="${card_content}"/>
             </div>
         </div>
     </div>

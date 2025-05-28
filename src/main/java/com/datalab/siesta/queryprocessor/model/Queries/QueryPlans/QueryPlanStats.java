@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.RequestScope;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -44,7 +45,22 @@ public class QueryPlanStats implements QueryPlan{
         QueryStatsWrapper qsw = (QueryStatsWrapper)qs;
         Set<EventPair> eventPairs = qsw.getPattern().extractPairsConsecutive();
         List<Count> stats = dbConnector.getStats(qsw.getLog_name(),eventPairs);
-        return new QueryResponseStats(stats);
+        List<Count> fixedList = new ArrayList<>();
+        for(EventPair ep:eventPairs) {
+            boolean found= false;
+            for(Count c:stats) {
+                if(c.getEventA().equals(ep.getEventA().getName()) && c.getEventB().equals(ep.getEventB().getName())) {
+                    fixedList.add(c);
+                    found=true;
+                }
+            }
+            if (!found){
+                Count c2 = new Count(ep.getEventA().getName(),ep.getEventB().getName(),0,
+                        0,0,0,0);
+                fixedList.add(c2);
+            }
+        }
+        return new QueryResponseStats(fixedList);
     }
 
     @Override

@@ -24,9 +24,10 @@
                 <th:block th:replace="~{components/expandable_card.html :: expandable_card(
                         'pattern-stats',
                         'Pattern Stats',
-                        ~{fragments/card_content/pattern_detection_cards.html::patternStatsContent},
+                        ~{fragments/card_content/pattern_detection_cards.html::defaultStats},
                         true,
-                        'myCustomRefresh'
+                        'loadStatsFragment',
+                        'pattern-stats-fragment'
                     )}"/>
 
 
@@ -36,7 +37,8 @@
                     'Filters',
                     ~{fragments/card_content/pattern_detection_cards.html::filtersCardContent},
                     false,
-                    null
+                    null,
+                    'filters-fragment'
                 )}" />
 
 

@@ -8,6 +8,37 @@
 </th:block>
 
 
+<th:block th:fragment="defaultStats">
+    <p style="white-space: nowrap">Define a pattern and then click the refresh button to load the stats.</p>
+</th:block>
+
+
+<th:block th:fragment="stats_result">
+    <table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp full-width-table">
+        <thead>
+        <tr>
+            <th class="mdl-data-table__cell--non-numeric">Event pair</th>
+            <th>Count</th>
+            <th>Min Duration (ms)</th>
+            <th>Max Duration (ms)</th>
+            <th>Sum Duration (ms)</th>
+            <th>Sum of Squares</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="stat : ${result.counts}">
+            <td class="mdl-data-table__cell--non-numeric"
+                th:text="${stat.eventA} + ' → ' + ${stat.eventB}">A → B</td>
+            <td th:text="${stat.count}">0</td>
+            <td th:text="${stat.minDuration}">0</td>
+            <td th:text="${stat.maxDuration}">0</td>
+            <td th:text="${stat.sumDuration}">0</td>
+            <td th:text="${stat.sumSquares}">0</td>
+        </tr>
+        </tbody>
+    </table>
+</th:block>
+
 <th:block th:fragment="patternStatsContent">
     <p>This is the Pattern Analysis card content.</p>
 </th:block>
