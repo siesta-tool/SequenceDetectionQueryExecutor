@@ -67,8 +67,11 @@ public class UserInterfaceController {
     @PostMapping("/fragments/pattern-stats")
     public String getStats(@RequestBody QueryStatsWrapper qsp, Model model) {
         Metadata m = loadInfo.getMetadata().getOrDefault(qsp.getLog_name(),null);
+        if(qsp.getPattern().getSize()<2){
+            return "fragments/card_content/pattern_detection_cards:: statsSmallSize";
+        }
         if (m == null) {
-            return "fragments/card_content/pattern_detection_cards:: stats_result";
+            return "fragments/card_content/pattern_detection_cards:: logNameNotFound";
         } else {
             QueryPlan qp = qs.createQueryPlan(qsp, m);
             QueryResponse qrs = qp.execute(qsp);

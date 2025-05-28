@@ -12,6 +12,14 @@
     <p style="white-space: nowrap">Define a pattern and then click the refresh button to load the stats.</p>
 </th:block>
 
+<th:block th:fragment="statsSmallSize">
+    <p style="white-space: nowrap">You have to define at least two events in the above pattern.</p>
+</th:block>
+
+<th:block th:fragment="logNameNotFound">
+    <p style="white-space: nowrap">This log name does not exist in the database.</p>
+</th:block>
+
 
 <th:block th:fragment="stats_result">
     <table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp full-width-table">
