@@ -68,27 +68,30 @@ public class QueryPlanPatternDetection implements QueryPlan {
     /**
      * A set of all the event types in this log database.
      */
-    @Setter
     protected Set<String> eventTypesInLog;
 
     /**
      * A set of all the event attributes in this log database.
      */
-    @Setter
     protected Set<String> eventAttributesInLog;
 
+
     /**
-     * A map containing all the attribute filters of the query.
+     * A hash map containing all the attribute filters of the query.
      */
     @Setter
     protected Map<Integer, Map<String, String>> attributes;
 
-    /**
-     * A map containing all the attribute equality filters of the query
-     */
     @Setter
     protected Map<String, List<Integer>> equalAttributes;
 
+    public void setEventTypesInLog(Set<String> eventTypesInLog) {
+        this.eventTypesInLog = eventTypesInLog;
+    }
+
+    public void setEventAttributesInLog(Set<String> eventAttributesInLog) {
+        this.eventAttributesInLog = eventAttributesInLog;
+    }
 
     public IndexMiddleResult getImr() { //no need for this is just for testing
         return imr;
@@ -170,7 +173,10 @@ public class QueryPlanPatternDetection implements QueryPlan {
             List<Count> sortedPairs = this.getStats(pairs.getAllPairs(), qpdw.getLog_name());
             List<Tuple2<EventPair, Count>> combined = this.combineWithPairs(pairs.getAllPairs(), sortedPairs);
             // run pattern detection for each potential pattern (multiple patterns when or is used)
-            IndexMiddleResult imrTemp = dbConnector.patterDetectionTraceIds(qpdw.getLog_name(), combined, metadata, pairs, qpdw.getFrom(), qpdw.getTill());
+            Set<String> chosenAttributes = new HashSet<>();
+            if (equalAttributes != null)
+                chosenAttributes.addAll(equalAttributes.keySet());
+            IndexMiddleResult imrTemp = dbConnector.patterDetectionTraceIds(qpdw.getLog_name(), combined, metadata, pairs, qpdw.getFrom(), qpdw.getTill(), chosenAttributes);
             if (imr == null) {
                 imr = imrTemp;
             } else {
@@ -271,7 +277,7 @@ public class QueryPlanPatternDetection implements QueryPlan {
     protected Map<String, List<Event>> querySeqDB(List<String> trace_ids, SIESTAPattern pattern,
                                                 String logname, Timestamp from, Timestamp till) {
         Set<String> eventTypes = pattern.getEventTypes();
-        Map<String, List<EventBoth>> fromDB = dbConnector.querySeqTable(logname, trace_ids, eventTypes, from, till);
+        Map<String, List<EventBoth>> fromDB = dbConnector.querySeqTable(logname, trace_ids, eventTypes, from, till, null);
         return fromDB.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().stream().map(s -> (Event) s)
                 .collect(Collectors.toList())));
@@ -388,6 +394,45 @@ public class QueryPlanPatternDetection implements QueryPlan {
         if (!cannotBeFullFilled.isEmpty()) {
             qr.setConstraintsNotFulfilled(cannotBeFullFilled);
         }
+
+        //Find if required attributes do not exist in db
+        List<String> nonExistingAttributes = new ArrayList<>();
+        Set<String> requiredAttributes = new HashSet<>();
+        if (queryPatternDetectionWrapper.getEqualAttributes() != null) {
+            requiredAttributes.addAll(queryPatternDetectionWrapper.getEqualAttributes().keySet());
+        }
+        if (queryPatternDetectionWrapper.getAttributes() != null) {
+            requiredAttributes.addAll(queryPatternDetectionWrapper.getAttributes()
+                    .values()
+                    .stream()
+                    .flatMap(innerMap -> innerMap.keySet().stream())
+                    .collect(Collectors.toSet()));
+        }
+        Set<String> existingAttributes = this.eventAttributesInLog;
+        for (String attribute : requiredAttributes)
+        {
+            if (!existingAttributes.contains(attribute)) {
+                nonExistingAttributes.add(attribute);
+            }
+        }
+
+        if (!nonExistingAttributes.isEmpty()) {
+            qr.setNonExistingAttributes(nonExistingAttributes);
+        }
+
+        List<String> attributesExceedingPatternSize = new ArrayList<>();
+        int patternSize = queryPatternDetectionWrapper.getPattern().getSize();
+        if (equalAttributes != null)
+            for (Map.Entry<String, List<Integer>> entry : equalAttributes.entrySet())
+            {
+                if (entry.getValue().size() > patternSize)
+                    attributesExceedingPatternSize.add(entry.getKey());
+            }
+
+        if (!attributesExceedingPatternSize.isEmpty()) {
+            qr.setAttributesExceedingPatternSize(attributesExceedingPatternSize);
+        }
+
         return qr;
 
     }

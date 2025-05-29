@@ -10,11 +10,16 @@ import com.datalab.siesta.queryprocessor.storage.model.*;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.Column;
+import static org.apache.spark.sql.functions.col;
+import static org.apache.spark.sql.functions.first;
+
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.storage.StorageLevel;
 import org.springframework.beans.factory.annotation.Autowired;
 import scala.Tuple2;
 
+import javax.xml.crypto.Data;
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -176,12 +181,12 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
             filteredTimestamps = filteredTimestamps.filter(functions.col("timestamp-true").leq(till));
         }
 
-        return this.transformEventModelAttributesToMap(filteredTimestamps);
+        return this.transformEventModelToMap(filteredTimestamps);
     }
 
     @Override
     public Map<String, List<EventBoth>> querySeqTableAttributes(String logname, List<String> traceIds, Set<String> eventTypes,
-                                                                Timestamp from, Timestamp till, Set<String> chosen_attributes) {
+                                                      Timestamp from, Timestamp till, Set<String> chosen_attributes) {
         Dataset<EventModelAttributes> eventsDF = this.readSequenceTableAttributes(logname, chosen_attributes);
         //filter based on id and based on eventType
         eventsDF = eventsDF.filter(functions.col("traceId").isin(traceIds.toArray()))
@@ -676,6 +681,18 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
                 .groupBy("traceId")// Group by trace_id and collect events into a list
                 .agg(functions.collect_list(functions
                                 .struct("eventName", "traceID", "timestamp", "position"))
+                        .alias("events"))
+                .as(Encoders.bean(Trace.class));
+        return groupedDF;
+    }
+
+    @Override
+    public Dataset<Trace> querySequenceTableDeclareAttributes(String logname, Set<String> chosen_attributes) {
+        Dataset<EventModelAttributes> eventDF = this.readSequenceTableAttributes(logname, chosen_attributes);
+        Dataset<Trace> groupedDF = eventDF
+                .groupBy("traceId")// Group by trace_id and collect events into a list
+                .agg(functions.collect_list(functions
+                                .struct("eventName", "traceID", "timestamp", "position", "attributes"))
                         .alias("events"))
                 .as(Encoders.bean(Trace.class));
         return groupedDF;

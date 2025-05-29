@@ -90,7 +90,7 @@ public class QueryPlanExplorationAccurate extends QueryPlanPatternDetection impl
         //Todo: check if we need all the pairs or simply the consecutive ones
         List<Count> sortedPairs = this.getStats(pairs.getAllPairs(), metadata.getLogname());
         List<Tuple2<EventPair, Count>> combined = this.combineWithPairs(pairs.getAllPairs(), sortedPairs);
-        imr = dbConnector.patterDetectionTraceIds(metadata.getLogname(), combined, metadata, pairs, null, null);
+        imr = dbConnector.patterDetectionTraceIds(metadata.getLogname(), combined, metadata, pairs, null, null, null);
         //retrieve time information from the SequenceTable
         super.retrieveTimeInformation(pattern, logname, null, null);
         List<Occurrences> occurrences = saseConnector.evaluate(pattern, imr.getEvents(), false);

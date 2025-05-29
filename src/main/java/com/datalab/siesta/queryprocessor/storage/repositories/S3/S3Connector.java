@@ -17,11 +17,15 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.*;
+import static org.apache.spark.sql.functions.col;
+import static org.apache.spark.sql.functions.map_from_arrays;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Service;
+
 
 import java.io.IOException;
 import java.net.URI;

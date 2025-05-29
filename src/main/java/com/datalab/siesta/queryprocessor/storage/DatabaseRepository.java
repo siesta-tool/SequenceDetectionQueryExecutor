@@ -80,8 +80,7 @@ public interface DatabaseRepository {
      */
     Map<String,List<EventBoth>> querySeqTable(String logname, List<String> traceIds, Set<String> eventTypes,Timestamp from, Timestamp till);
 
-    Map<String, List<EventBoth>> querySeqTableAttributes(String logname, List<String> traceIds, Set<String> chosen_attributes);
-
+    Map<String, List<EventBoth>> querySeqTableAttributes(String logname, List<String> traceIds, Set<String> eventTypes, Timestamp from, Timestamp till, Set<String> chosen_attributes);
     /**
      * Retrieves the appropriate events from the SequenceTable, which contains the original traces
      * @param logname the log database
@@ -91,8 +90,8 @@ public interface DatabaseRepository {
      */
     Map<String,List<EventBoth>> querySeqTable(String logname, List<String> traceIds);
 
-    Map<String, List<EventBoth>> querySeqTableAttributes(String logname, List<String> traceIds, Set<String> eventTypes,
-                                                         Timestamp from, Timestamp till, Set<String> chosen_attributes);
+    Map<String, List<EventBoth>> querySeqTableAttributes(String logname, List<String> traceIds, Set<String> chosen_attributes);
+
 
     /**
      * Detects the traces that contain all the given event pairs
@@ -158,6 +157,8 @@ public interface DatabaseRepository {
 
     // Below are for Declare //
     Dataset<Trace> querySequenceTableDeclare(String logname);
+
+    Dataset<Trace> querySequenceTableDeclareAttributes(String logname, Set<String> chosen_attributes);
 
     Dataset<UniqueTracesPerEventType> querySingleTableDeclare(String logname);
 

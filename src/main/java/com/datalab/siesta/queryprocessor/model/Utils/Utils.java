@@ -49,14 +49,13 @@ public class Utils implements Serializable {
     public List<SaseEvent> transformToSaseEvents(List<Event> events){
         List<SaseEvent> ses = new ArrayList<>();
         Event fe = events.get(0);
-
-        if (fe instanceof EventBoth){
+        if(fe instanceof EventBoth){ //handling event positions
             long minTs = ((EventTs) fe).getTimestamp().getTime();
             SaseEvent se = new SaseEvent(fe.getTraceID(),((EventBoth) fe).getPosition(),fe.getName(),0,true);
             se.setMinTs(minTs);
             ses.add(se);
-            for(int i =1 ;i<events.size();i++){
-                ses.add(((EventBoth)events.get(i)).transformSaseEvent(i,minTs));
+            for(int i=1;i<events.size();i++){
+                ses.add(((EventBoth) events.get(i)).transformSaseEvent(i, minTs));
             }
         }
         else if(fe instanceof EventTs){ // handling events ts
@@ -67,7 +66,8 @@ public class Utils implements Serializable {
             for(int i =1 ;i<events.size();i++){
                 ses.add(((EventTs)events.get(i)).transformSaseEvent(i,minTs));
             }
-        }else if(fe instanceof EventPos){ //handling event positions
+        }
+        else if(fe instanceof EventPos){ //handling event positions
             for(int i=0;i<events.size();i++){
                 ses.add(events.get(i).transformSaseEvent(i));
             }

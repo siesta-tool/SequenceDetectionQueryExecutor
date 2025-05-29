@@ -34,17 +34,25 @@ public class QueryResponseBadRequestForDetection implements QueryResponse {
     @JsonProperty("Constraints containing errors")
     protected List<Constraint> wrongConstraints;
 
+    @JsonProperty("Attributes do not exist")
+    protected List<String> nonExistingAttributes;
+
+    @JsonProperty("Attribute equality list exceeds pattern in size")
+    protected List<String> attributesExceedingPatternSize;
+
     public QueryResponseBadRequestForDetection(){
         nonExistingPairs=new ArrayList<>();
         constraintsNotFulfilled=new ArrayList<>();
         nonExistingEvents=new ArrayList<>();
         wrongConstraints=new ArrayList<>();
+        nonExistingAttributes = new ArrayList<>();
+        attributesExceedingPatternSize = new ArrayList<>();
     }
 
     @JsonIgnore
     public boolean isEmpty(){
         return nonExistingEvents.isEmpty() && constraintsNotFulfilled.isEmpty() && nonExistingPairs.isEmpty() &&
-                wrongConstraints.isEmpty();
+                wrongConstraints.isEmpty() && nonExistingAttributes.isEmpty() && attributesExceedingPatternSize.isEmpty();
     }
 
     public List<Constraint> getWrongConstraints() {
@@ -78,4 +86,12 @@ public class QueryResponseBadRequestForDetection implements QueryResponse {
     public void setConstraintsNotFulfilled(List<EventPair> constraintsNotFulfilled) {
         this.constraintsNotFulfilled = constraintsNotFulfilled;
     }
+
+    public List<String> getNonExistingAttributes() {return nonExistingAttributes;}
+
+    public void setNonExistingAttributes(List<String> nonExistingAttributes) {this.nonExistingAttributes = nonExistingAttributes;}
+
+    public List<String> getAttributesExceedingPatternSize() {return attributesExceedingPatternSize;}
+
+    public void setAttributesExceedingPatternSize(List<String> attributesExceedingPatternSize) {this.attributesExceedingPatternSize = attributesExceedingPatternSize;}
 }

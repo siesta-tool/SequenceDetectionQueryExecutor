@@ -96,31 +96,35 @@ public class DBConnector {
     /**
      * Detects the traces that contain all the given event pairs
      *
-     * @param logname  the log database
-     * @param combined a list where each event pair is combined with the according stats from the CountTable
-     * @param metadata the log database metadata
-     * @param pairs    the event pairs extracted from the query
-     * @param from     the starting timestamp, set to null if not used
-     * @param till     the ending timestamp, set to null if not used
+     * @param logname           the log database
+     * @param combined          a list where each event pair is combined with the according stats from the CountTable
+     * @param metadata          the log database metadata
+     * @param pairs             the event pairs extracted from the query
+     * @param from              the starting timestamp, set to null if not used
+     * @param till              the ending timestamp, set to null if not used
+     * @param equal_attributes  the attributes that must be equal for the given query
      * @return the traces that contain all the pairs. It will be then processed by SASE in order to remove false
      * positives.
      */
-    public IndexMiddleResult patterDetectionTraceIds(String logname, List<Tuple2<EventPair, Count>> combined, Metadata metadata, ExtractedPairsForPatternDetection pairs, Timestamp from, Timestamp till) {
-        return db.patterDetectionTraceIds(logname, combined, metadata, pairs, from, till);
+    public IndexMiddleResult patterDetectionTraceIds(String logname, List<Tuple2<EventPair, Count>> combined, Metadata metadata, ExtractedPairsForPatternDetection pairs, Timestamp from, Timestamp till, Set<String> equal_attributes) {
+        return db.patterDetectionTraceIds(logname, combined, metadata, pairs, from, till, equal_attributes);
     }
 
     /**
      * Retrieves the appropriate events from the SequenceTable, which contains the original traces
      *
-     * @param logname    the log database
-     * @param traceIds   the ids of the traces that will be retrieved
-     * @param eventTypes the events that will be retrieved
-     * @param from       the starting timestamp, set to null if not used
-     * @param till       the ending timestamp, set to null if not used
+     * @param logname           the log database
+     * @param traceIds          the ids of the traces that will be retrieved
+     * @param eventTypes        the events that will be retrieved
+     * @param from              the starting timestamp, set to null if not used
+     * @param till              the ending timestamp, set to null if not used
+     * @param chosen_attributes the attributes to be kept
      * @return a map where the key is the trace id and the value is a list of the retrieved events (with their
      * timestamps)
      */
-    public Map<String, List<EventBoth>> querySeqTable(String logname, List<String> traceIds, Set<String> eventTypes, Timestamp from, Timestamp till) {
+    public Map<String, List<EventBoth>> querySeqTable(String logname, List<String> traceIds, Set<String> eventTypes, Timestamp from, Timestamp till, Set<String> chosen_attributes) {
+        if (chosen_attributes != null && !chosen_attributes.isEmpty())
+            return db.querySeqTableAttributes(logname, traceIds, eventTypes, from, till, chosen_attributes);
         return db.querySeqTable(logname, traceIds, eventTypes, from, till);
     }
 

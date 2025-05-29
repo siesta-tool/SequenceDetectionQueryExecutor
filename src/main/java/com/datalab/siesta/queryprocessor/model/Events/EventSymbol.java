@@ -3,6 +3,7 @@ package com.datalab.siesta.queryprocessor.model.Events;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.MappingJacksonViews;
 import com.fasterxml.jackson.annotation.JsonView;
 
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -26,6 +27,12 @@ public class EventSymbol extends EventPos{
 
     public EventSymbol(String name, int pos, String symbol) {
         super(name, pos);
+        this.symbol = symbol;
+    }
+
+    public EventSymbol(String name, int pos, Map<String, String> attributes, String symbol) {
+        super(name, pos);
+        this.attributes = attributes;
         this.symbol = symbol;
     }
 
