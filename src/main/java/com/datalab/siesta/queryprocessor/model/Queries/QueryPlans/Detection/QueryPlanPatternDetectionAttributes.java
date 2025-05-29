@@ -56,6 +56,7 @@ public class QueryPlanPatternDetectionAttributes extends QueryPlanPatternDetecti
         if (response instanceof QueryResponsePatternDetection) {
             this.getEventAttributes((QueryResponsePatternDetection) response);
             filterByAttributes((QueryResponsePatternDetection) response);
+            filterByAttributeEquality((QueryResponsePatternDetection) response);
         }
         return response;
     }
@@ -142,5 +143,40 @@ public class QueryPlanPatternDetectionAttributes extends QueryPlanPatternDetecti
             }
         }
         return false;
+    }
+
+    private void filterByAttributeEquality(QueryResponsePatternDetection response) {
+        // Apply additional filtering logic based on attributes
+        response.setOccurrences(
+                response.getOccurrences().stream()
+                        .filter(this::meetsEqualityCriteria)
+                        .collect(Collectors.toList())
+        );
+    }
+
+    private boolean meetsEqualityCriteria(Occurrences occurrences) {
+        if (equalAttributes == null || equalAttributes.isEmpty()) {
+            return true;
+        }
+
+
+        for (Occurrence occurrence : occurrences.getOccurrences()) {
+            List<EventBoth> events = occurrence.getOccurrence();
+            for (String attributeKey : equalAttributes.keySet()) {
+
+                List<Integer> equalPositions = equalAttributes.get(attributeKey);
+
+                if (equalPositions == null || equalPositions.isEmpty()) continue;
+
+                String attributeValue = events.get(equalPositions.get(0)).getAttributes().get(attributeKey);
+                for (int position : equalPositions) {
+                    EventBoth event = events.get(position);
+                    if (event.getAttributes() == null || event.getAttributes().get(attributeKey) == null || !event.getAttributes().get(attributeKey).equals(attributeValue)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
     }
 }

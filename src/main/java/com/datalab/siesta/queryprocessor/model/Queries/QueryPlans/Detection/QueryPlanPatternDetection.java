@@ -22,6 +22,7 @@ import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryWrapper;
 import com.datalab.siesta.queryprocessor.model.TimeStats;
 import com.datalab.siesta.queryprocessor.model.Utils.Utils;
 import com.datalab.siesta.queryprocessor.storage.DBConnector;
+import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,11 +73,11 @@ public class QueryPlanPatternDetection implements QueryPlan {
     /**
      * A hash map containing all the attribute filters of the query.
      */
+    @Setter
     protected Map<Integer, Map<String, String>> attributes;
 
-    public void setAttributes(Map<Integer, Map<String, String>> attributes) {
-        this.attributes = attributes;
-    }
+    @Setter
+    protected Map<String, List<Integer>> equalAttributes;
 
     public void setEventTypesInLog(Set<String> eventTypesInLog) {
         this.eventTypesInLog = eventTypesInLog;
