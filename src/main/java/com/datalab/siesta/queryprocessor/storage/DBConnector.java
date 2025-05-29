@@ -106,8 +106,8 @@ public class DBConnector {
      * @return the traces that contain all the pairs. It will be then processed by SASE in order to remove false
      * positives.
      */
-    public IndexMiddleResult patterDetectionTraceIds(String logname, List<Tuple2<EventPair, Count>> combined, Metadata metadata, ExtractedPairsForPatternDetection pairs, Timestamp from, Timestamp till, Set<String> equal_attributes) {
-        return db.patterDetectionTraceIds(logname, combined, metadata, pairs, from, till, equal_attributes);
+    public IndexMiddleResult patterDetectionTraceIds(String logname, List<Tuple2<EventPair, Count>> combined, Metadata metadata, ExtractedPairsForPatternDetection pairs, Timestamp from, Timestamp till) {
+        return db.patterDetectionTraceIds(logname, combined, metadata, pairs, from, till);
     }
 
     /**
@@ -122,11 +122,6 @@ public class DBConnector {
      * @return a map where the key is the trace id and the value is a list of the retrieved events (with their
      * timestamps)
      */
-    public Map<String, List<EventBoth>> querySeqTable(String logname, List<String> traceIds, Set<String> eventTypes, Timestamp from, Timestamp till, Set<String> chosen_attributes) {
-        if (chosen_attributes != null && !chosen_attributes.isEmpty())
-            return db.querySeqTableAttributes(logname, traceIds, eventTypes, from, till, chosen_attributes);
-        return db.querySeqTable(logname, traceIds, eventTypes, from, till);
-    }
 
     public Map<String, List<EventBoth>> querySeqTable(String logname, List<String> traceIds, Set<String> eventTypes, Timestamp from, Timestamp till, Set<String> chosen_attributes) {
         return db.querySeqTableAttributes(logname, traceIds, eventTypes, from, till, chosen_attributes);

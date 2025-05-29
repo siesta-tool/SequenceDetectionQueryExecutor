@@ -173,10 +173,7 @@ public class QueryPlanPatternDetection implements QueryPlan {
             List<Count> sortedPairs = this.getStats(pairs.getAllPairs(), qpdw.getLog_name());
             List<Tuple2<EventPair, Count>> combined = this.combineWithPairs(pairs.getAllPairs(), sortedPairs);
             // run pattern detection for each potential pattern (multiple patterns when or is used)
-            Set<String> chosenAttributes = new HashSet<>();
-            if (equalAttributes != null)
-                chosenAttributes.addAll(equalAttributes.keySet());
-            IndexMiddleResult imrTemp = dbConnector.patterDetectionTraceIds(qpdw.getLog_name(), combined, metadata, pairs, qpdw.getFrom(), qpdw.getTill(), chosenAttributes);
+            IndexMiddleResult imrTemp = dbConnector.patterDetectionTraceIds(qpdw.getLog_name(), combined, metadata, pairs, qpdw.getFrom(), qpdw.getTill());
             if (imr == null) {
                 imr = imrTemp;
             } else {
