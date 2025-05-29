@@ -90,12 +90,12 @@ public class ComplexPattern extends SIESTAPattern {
                 switch (es.getSymbol()) {
                     case "_":
                     case "":
-                        l.add(new EventPos(es.getName(), i));
+                        l.add(new EventPos(es.getName(), null, i, es.getAttributes()));
                         break;
                     case "+":
 //                    case "!":
-                        l.add(new EventPos(es.getName(), i));
-                        allPairs.add(new EventPair(new Event(es.getName()), new Event(es.getName())));
+                        l.add(new EventPos(es.getName(), null, i, es.getAttributes()));
+                        allPairs.add(new EventPair(new Event(es.getName(), es.getAttributes()), new Event(es.getName(), es.getAttributes())));
                         break;
                     case "!":
                     case "*":
@@ -112,11 +112,11 @@ public class ComplexPattern extends SIESTAPattern {
                                 }
                             }
                             if(nextNonEmpty!=null){
-                                allPairs.add(new EventPair(new Event(es.getName()),nextNonEmpty));
+                                allPairs.add(new EventPair(new Event(es.getName(), es.getAttributes()),nextNonEmpty));
                             }
 
                         }
-                        allPairs.add(new EventPair(new Event(es.getName()), new Event(es.getName())));
+                        allPairs.add(new EventPair(new Event(es.getName(), es.getAttributes()), new Event(es.getName(), es.getAttributes())));
                         break;
                 }
             }
@@ -131,7 +131,7 @@ public class ComplexPattern extends SIESTAPattern {
         List<Set<EventSymbol>> samePos = new ArrayList<>();
         // split events to different sets based on their positions in the pattern
         for(EventSymbol e: this.eventsWithSymbols){
-            EventSymbol es = new EventSymbol(e.getName(),e.getPosition(),e.getSymbol());
+            EventSymbol es = new EventSymbol(e.getName(),e.getPosition(),e.getAttributes(),e.getSymbol());
             if(e.getSymbol().equals("||")){
                 es.setSymbol("_");
             }

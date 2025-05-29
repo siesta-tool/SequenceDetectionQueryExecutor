@@ -22,6 +22,7 @@ import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryWrapper;
 import com.datalab.siesta.queryprocessor.model.TimeStats;
 import com.datalab.siesta.queryprocessor.model.Utils.Utils;
 import com.datalab.siesta.queryprocessor.storage.DBConnector;
+import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -73,6 +74,9 @@ public class QueryPlanPatternDetection implements QueryPlan {
      * A hash map containing all the attribute filters of the query.
      */
     protected Map<Integer, Map<String, String>> attributes;
+
+    @Setter
+    protected Map<String, List<Integer>> equalAttributes;
 
     public void setAttributes(Map<Integer, Map<String, String>> attributes) {
         this.attributes = attributes;
@@ -161,7 +165,10 @@ public class QueryPlanPatternDetection implements QueryPlan {
             List<Count> sortedPairs = this.getStats(pairs.getAllPairs(), qpdw.getLog_name());
             List<Tuple2<EventPair, Count>> combined = this.combineWithPairs(pairs.getAllPairs(), sortedPairs);
             // run pattern detection for each potential pattern (multiple patterns when or is used)
-            IndexMiddleResult imrTemp = dbConnector.patterDetectionTraceIds(qpdw.getLog_name(), combined, metadata, pairs, qpdw.getFrom(), qpdw.getTill());
+            Set<String> chosenAttributes = new HashSet<>();
+            if (equalAttributes != null)
+                chosenAttributes.addAll(equalAttributes.keySet());
+            IndexMiddleResult imrTemp = dbConnector.patterDetectionTraceIds(qpdw.getLog_name(), combined, metadata, pairs, qpdw.getFrom(), qpdw.getTill(), chosenAttributes);
             if (imr == null) {
                 imr = imrTemp;
             } else {

@@ -105,8 +105,8 @@ public class DBConnector {
      * @return the traces that contain all the pairs. It will be then processed by SASE in order to remove false
      * positives.
      */
-    public IndexMiddleResult patterDetectionTraceIds(String logname, List<Tuple2<EventPair, Count>> combined, Metadata metadata, ExtractedPairsForPatternDetection pairs, Timestamp from, Timestamp till) {
-        return db.patterDetectionTraceIds(logname, combined, metadata, pairs, from, till);
+    public IndexMiddleResult patterDetectionTraceIds(String logname, List<Tuple2<EventPair, Count>> combined, Metadata metadata, ExtractedPairsForPatternDetection pairs, Timestamp from, Timestamp till, Set<String> chosen_attributes) {
+        return db.patterDetectionTraceIds(logname, combined, metadata, pairs, from, till, chosen_attributes);
     }
 
     /**
