@@ -80,6 +80,11 @@ public class UserInterfaceController {
         }
     }
 
+    @GetMapping("/fragments/constraint-card")
+    public String getConstraintCard(@RequestParam int index, Model model) {
+        model.addAttribute("index", index);
+        return "fragments/card_content/pattern_filters :: constraint_card";
+    }
 
 
 

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<body>
+
+<th:block th:fragment="pattern_filters">
+    <div class="filters-grid">
+        <!-- Column 1: Date & Pattern Constraints -->
+        <div class="filters-column">
+            <h6 >Window constraints</h6>
+            <table>
+                <tr>
+                    <td><label for="date-from">From:</label></td>
+                    <td><input type="date" id="date-from" name="dateFrom" class="mdl-textfield__input" /></td>
+                </tr>
+                <tr>
+                    <td><label for="date-to">To:</label></td>
+                    <td><input type="date" id="date-to" name="dateTo" class="mdl-textfield__input" /></td>
+                </tr>
+            </table>
+            <h6>Trace groups</h6>
+            <input style="text-align: center;"
+                   type="text" id="groups" name="groups" placeholder=" e.g. [(1-5,7),(2-8,8-12)]" class="mdl-textfield__input" />
+
+            <label for="return-all">
+                <input type="checkbox" id="return-all" name="returnAll" />
+                Return all
+            </label>
+
+        </div>
+        <div class="filters-column">
+            <h6>Pattern constraints</h6>
+            <div id="constraints-container">
+                <button type="button" id="add-constraint-button" class="mdl-button mdl-js-button" onclick="addConstraint()">
+                    Add Constraint</button>
+            </div>
+
+        </div>
+
+        <div class="filters-column">
+            <h6>Uncertainty (detect near matches)</h6>
+            <table>
+                <tr>
+                    <td><label for="k">K</label></td>
+                    <td><input style="text-align: center;" type="number" id="k" name="k" class="mdl-textfield__input" /></td>
+                    <td><select id="k-granularity" name="kGranularity">
+                        <option value="seconds">seconds</option>
+                        <option value="minutes">minutes</option>
+                    </select></td>
+                </tr>
+                <tr>
+                    <td style="white-space: nowrap;"><label for="uncertainty">Uncertainty per event</label></td>
+                    <td><input style="text-align: center;" type="number" id="uncertainty" name="uncertainty" class="mdl-textfield__input" /></td>
+                    <td><select id="uncertainty-granularity" name="uncertaintyGranularity">
+                        <option value="seconds">seconds</option>
+                        <option value="minutes">minutes</option>
+                    </select></td>
+                </tr>
+            </table>
+
+
+
+            <div style="flex-grow: 1;"></div>
+            <button type="button" class="save-button mdl-button mdl-js-button mdl-button--raised mdl-button--colored">
+                Save
+            </button>
+        </div>
+    </div>
+</th:block>
+
+<th:block th:fragment="constraint_card(index)">
+    <div class="constraint-card mdl-card mdl-shadow--2dp" th:attr="data-id=${index}">
+        <table>
+            <tr>
+                <td><label style="text-wrap: nowrap">Event A:</label></td>
+                <td><select style="width: 95%" class="event-a">
+                    <option disabled selected>Select event</option>
+                </select></td>
+                <td style="text-align: right"><button class="mdl-button mdl-js-button mdl-button--icon" onclick="removeConstraint(this)">
+                    <i class="material-icons">delete</i>
+                </button></td>
+            </tr>
+            <tr>
+                <td><label style="text-wrap: nowrap">Event B:</label></td>
+                <td ><select style="width:95%" class="event-b">
+                    <option disabled selected>Select event</option>
+                </select></td>
+            </tr>
+            <tr>
+                <td><label style="text-wrap: nowrap">Operator:</label></td>
+                <td colspan="2"><div style="width: 95%" class="toggle-group">
+                    <button type="button" class="toggle-btn active" onclick="toggleSingle(this)">Within</button>
+                    <button type="button" class="toggle-btn" onclick="toggleSingle(this)">At least</button>
+                </div></td>
+            </tr>
+            <tr>
+                <td><label>Type:</label></td>
+                <td colspan="2">
+                    <div style="width: 95%" class="toggle-group">
+                        <button type="button" class="toggle-btn active" onclick="toggleConstraintType(this)">Time</button>
+                        <button type="button" class="toggle-btn" onclick="toggleConstraintType(this)">Gap</button>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td><label style="text-wrap: nowrap">Value:</label> </td>
+                <td><input type="number" style="text-align: center;" class="mdl-textfield__input" /></td>
+                <td>
+                    <div class="granularity-select">
+                        <select>
+                            <option value="seconds">seconds</option>
+                            <option value="minutes">minutes</option>
+                        </select>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</th:block>
+
+</body>
+</html>

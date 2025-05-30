@@ -46,3 +46,89 @@
     width: auto;       /* only as wide as its content */
     margin: 0 auto;    /* fallback centering if needed */
 }
+
+.filters-column .mdl-button{
+    position: relative;
+    bottom: auto;
+}
+
+.filters-grid {
+    color:black;
+    display: flex;
+    width:auto;
+    gap: 24px;
+    justify-content: space-between;
+}
+
+#filters-fragment {
+    width: 100%;
+}
+
+.filters-column {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    flex: 1 1 30%;
+    gap: 30px;
+    min-width: 280px;
+    position: relative;
+}
+
+.filters-column h6{
+    margin: 12px 0;
+}
+
+.save-button {
+    font-size: 13px;
+    border-radius: 20px;
+    align-self: flex-end; /* optional: align right in column */
+}
+
+.mdl-card.constraint-card  {
+    margin-bottom: 12px;
+    padding: 12px;
+    width: 100%;
+    overflow-x:auto;
+}
+
+.constraint-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+
+
+.toggle-group {
+    display: flex;
+    gap: 8px;
+}
+
+.toggle-btn {
+    padding: 6px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+}
+
+.toggle-btn.active {
+    background-color: #3f51b5;
+    color: white;
+    border-color: #3f51b5;
+}
+
+#add-constraint-button {
+    background-color: rgba(209, 207, 207, 0.94);
+    color: #3f51b5;
+    border-radius: 20px;
+    font-size: 15px;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+}
+
+
+
+#add-constraint-button:hover {
+    background-color: #e0e0e0;
+}

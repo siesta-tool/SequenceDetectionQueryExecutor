@@ -80,11 +80,14 @@ function initEventSearchBar() {
         closeBtn.className = 'close-btn';
         closeBtn.addEventListener('click', () => {
             tag.remove();
+            updateAllConstraintDropdowns();
         });
 
         tag.appendChild(text);
         tag.appendChild(closeBtn);
         tagsContainer.appendChild(tag);
+
+        updateAllConstraintDropdowns();
     }
 
     // Hide dropdown when clicking outside

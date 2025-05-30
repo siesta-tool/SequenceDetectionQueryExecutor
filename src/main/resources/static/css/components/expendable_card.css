@@ -48,4 +48,5 @@
     align-items: center;     /* optional: vertical centering */
     flex-direction: column;  /* stack multiple children vertically */
     overflow-x:auto;
+    width:98%;
 }
