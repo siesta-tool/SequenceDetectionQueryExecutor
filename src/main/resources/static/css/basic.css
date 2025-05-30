@@ -43,3 +43,9 @@ body {
 .main-content {
     flex: 1;
 }
+
+.invisible-space {
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
+}

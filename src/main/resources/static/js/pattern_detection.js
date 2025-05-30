@@ -164,5 +164,13 @@ function toggleConstraintType(btn) {
     const isTime = btn.textContent.includes("Time");
 
     const granularity = container.querySelector(".granularity-select");
-    granularity.classList.toggle("hidden", !isTime);
+
+
+    if (granularity) {
+        if (isTime) {
+            granularity.classList.remove("invisible-space");
+        } else {
+            granularity.classList.add("invisible-space");
+        }
+    }
 }
