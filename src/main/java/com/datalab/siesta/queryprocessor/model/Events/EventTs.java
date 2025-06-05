@@ -7,6 +7,8 @@ import com.fasterxml.jackson.annotation.JsonView;
 
 import java.io.Serializable;
 import java.sql.Timestamp;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -17,6 +19,8 @@ public class EventTs extends Event implements Serializable, Cloneable {
     @JsonView(MappingJacksonViews.EventAllInfo.class)
     protected Timestamp timestamp;
 
+    @JsonView(MappingJacksonViews.EventAllInfo.class)
+    protected Map<String, String> attributes;
 
 
     public EventTs() {
@@ -33,6 +37,12 @@ public class EventTs extends Event implements Serializable, Cloneable {
         this.timestamp = timestamp;
     }
 
+    public EventTs(String name, String traceID, Timestamp timestamp, Map<String, String> attributes) {
+        super(name, traceID);
+        this.timestamp = timestamp;
+        this.attributes = attributes;
+    }
+
     public Timestamp getTimestamp() {
         return timestamp;
     }
@@ -41,10 +51,14 @@ public class EventTs extends Event implements Serializable, Cloneable {
         this.timestamp = timestamp;
     }
 
+    public Map<String, String> getAttributes() {return attributes;}
+
+    public void setAttributes(Map<String, String> attributes) {this.attributes = attributes;}
+
     @Override
     @JsonIgnore
     public EventBoth getEventBoth(){
-        return new EventBoth(this.name,this.timestamp,-1);
+        return new EventBoth(this.name,null, this.timestamp,-1, this.attributes);
     }
 
 

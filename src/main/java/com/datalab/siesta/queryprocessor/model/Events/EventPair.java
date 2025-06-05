@@ -71,7 +71,12 @@ public class EventPair implements Serializable {
         }
         if (getClass() != o.getClass()) return false;
         EventPair eventPair = (EventPair) o;
-        return eventA.getName().equals(eventPair.eventA.getName()) && eventB.getName().equals(eventPair.eventB.getName());
+        EventBoth evA = eventA.getEventBoth();
+        EventBoth evB = eventB.getEventBoth();
+        EventBoth ev_pair_A = eventPair.getEventA().getEventBoth();
+        EventBoth ev_pair_B = eventPair.getEventB().getEventBoth();
+        return evA.getName().equals(ev_pair_A.getName()) && evB.getName().equals(ev_pair_B.getName())
+                && Objects.equals(ev_pair_A.getAttributes(), evA.getAttributes()) && Objects.equals(ev_pair_B.getAttributes(), evB.getAttributes());
     }
 
 
