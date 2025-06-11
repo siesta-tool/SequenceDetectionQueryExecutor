@@ -169,3 +169,21 @@
 .pretty-table tr:hover {
     background-color: #f5f5f5;
 }
+
+#pattern-detection-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+}
+
+.right-align{
+    justify-content: flex-end;
+    display: flex;
+    margin-top:auto;
+}
+
+#pattern-search-button{
+    margin-top: 12px;
+    justify-content: flex-end;
+}

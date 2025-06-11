@@ -7,7 +7,8 @@
                 <!--Pattern Definition card-->
                 <div class="mdl-card mdl-shadow--2dp" id="pattern-card">
                     <div class="section-title">Pattern Definition</div>
-                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label" style="width: 100%">
+                    <div  id="pattern-definition-container"
+                         style="width: 100%">
                         <select id="logSelector" onchange="loadEventsForLog()" class="mdl-textfield__input">
                             <option value="" disabled selected>Select a log</option>
                             <option th:each="log : ${lognames}" th:value="${log}" th:text="${log}"></option>
@@ -23,7 +24,13 @@
 
                             </div>
                         </div>
-
+                        <div class="right-align">
+                            <button id="pattern-search-button"
+                                    class="hidden save-button mdl-button mdl-js-button mdl-button--raised mdl-button--colored"
+                                    onclick="searchPattern()">
+                                Search
+                            </button>
+                        </div>
                     </div>
                 </div>
 

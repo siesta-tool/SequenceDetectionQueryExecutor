@@ -23,6 +23,7 @@ function loadEventsForLog() {
             document.getElementById("pattern-search").classList.remove('hidden')
             document.getElementById("pattern-filters").classList.remove('hidden')
             document.getElementById("pattern-stats").classList.remove('hidden')
+            document.getElementById("pattern-search-button").classList.remove('hidden')
         })
         .catch(err => {
             console.error('Error fetching events:', err);
@@ -288,9 +289,6 @@ function saveFilters(){
         .forEach(card => {
             createTagFromConstraint(card);
         })
-
-
-
 }
 
 function createTagFromConstraint(card) {
@@ -319,4 +317,10 @@ function createTagFromConstraint(card) {
             checkFilterTagVisibility();
         });
     }
+}
+
+function searchPattern(){
+    // todo: implement this -> read data from filters and pattern, construct query and send it (asynced)
+    // todo: container with 2 tabs (results + excel export) and stats (load pie based on the returned results)
+    console.log("Triggered Search :D")
 }
