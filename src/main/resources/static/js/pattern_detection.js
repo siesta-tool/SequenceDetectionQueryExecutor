@@ -14,14 +14,15 @@ function loadEventsForLog() {
     fetch(`/eventTypes?logname=${encodeURIComponent(selectedLog)}`)
         .then(response => response.json())
         .then(data => {
-            // Update global events array
-            events.length = 0; // clear the existing list
-            events.push(...data); // populate with new ones
+            events.length = 0;
+            events.push(...data);
             input.value = '';
             eventList.innerHTML = '';
             tagsContainer.innerHTML = '';
             symbolList.classList.add('hidden');
             document.getElementById("pattern-search").classList.remove('hidden')
+            document.getElementById("pattern-filters").classList.remove('hidden')
+            document.getElementById("pattern-stats").classList.remove('hidden')
         })
         .catch(err => {
             console.error('Error fetching events:', err);
@@ -172,5 +173,150 @@ function toggleConstraintType(btn) {
         } else {
             granularity.classList.add("invisible-space");
         }
+    }
+}
+
+function checkFilterTagVisibility() {
+    const tagContainer = document.getElementById('filter-tag-container');
+    const wrapper = document.getElementById('pattern-filters-tags');
+    if (tagContainer.children.length === 0) {
+        wrapper.classList.add('hidden');
+    } else {
+        wrapper.classList.remove('hidden');
+    }
+}
+
+function createFilterTag(id, label, value, onDeleteCallback) {
+    const tag = document.createElement('div');
+    tag.className = 'tag';
+    tag.dataset.id = id;
+
+    const text = document.createElement('span');
+    text.textContent = `${label}${value}`;
+
+    const closeBtn = document.createElement('span');
+    closeBtn.textContent = '×';
+    closeBtn.className = 'close-btn';
+    closeBtn.addEventListener('click', () => {
+        tag.remove();
+        if (typeof onDeleteCallback === 'function') {
+            onDeleteCallback();
+        }
+        checkFilterTagVisibility();
+    });
+
+    tag.appendChild(text);
+    tag.appendChild(closeBtn);
+    document.getElementById('filter-tag-container').appendChild(tag);
+
+    checkFilterTagVisibility();
+}
+
+function removeFilterTag(id) {
+    const tag = document.querySelector(`.tag[data-id="${id}"]`);
+
+    if (tag) {
+        tag.remove();
+    }
+}
+
+//hooks for filters
+function saveFilters(){
+    console.log("Saving filters");
+    const fromValue = document.getElementById('date-from').value;
+    removeFilterTag('date-from'); // prevent duplicates
+    if (fromValue) {
+        createFilterTag('date-from', 'From: ', fromValue, () => {
+            document.getElementById('date-from').value = '';
+            checkFilterTagVisibility();
+        });
+    }
+    const toValue = document.getElementById('date-to').value;
+    removeFilterTag('date-to');
+    if (toValue) {
+        createFilterTag('date-to', 'To: ', toValue, () => {
+            document.getElementById('date-to').value = '';
+            checkFilterTagVisibility();
+        });
+    }
+    removeFilterTag('return-all');
+    if(document.getElementById('return-all').checked){
+        createFilterTag('return-all', 'Return All', '', () => {
+            document.getElementById('return-all').checked = false;
+            checkFilterTagVisibility();
+        });
+    }
+
+    const kValue = document.getElementById('k').value;
+    const uncertaintyValue = document.getElementById('uncertainty').value;
+    const kInput = document.getElementById('k');
+    const uncertaintyInput = document.getElementById('uncertainty');
+
+    const granularityUncertainty = document.getElementById('uncertainty-granularity').value;
+    const granularityk = document.getElementById('k-granularity').value;
+
+    if(kValue && !uncertaintyValue){
+        uncertaintyInput.classList.add('invalid-input');
+    }else if(!kValue && uncertaintyValue){
+        kInput.classList.add('invalid-input');
+    }else{
+        kInput.classList.remove('invalid-input');
+        uncertaintyInput.classList.remove('invalid-input');
+    }
+
+    removeFilterTag('uncertainty-combo');
+    if (kValue && uncertaintyValue) {
+        createFilterTag(
+            'uncertainty-combo',
+            'WNM configuration ',
+            `(k: ${kValue} ${granularityk}, uncertainty: ${uncertaintyValue} ${granularityUncertainty})`,
+            () => {
+                kInput.value = '';
+                uncertaintyInput.value = '';
+                document.getElementById('k-granularity').value = 'seconds';
+                document.getElementById('uncertainty-granularity').value = 'seconds';
+                checkFilterTagVisibility();
+            }
+        );
+    }
+    //remove all tags that correspond to the pattern
+    document.getElementById('filter-tag-container')
+        .querySelectorAll('[id^="pattern-constraint-"]').forEach(el => el.remove());
+    //create tag for each valid card
+    document.getElementById('constraints-container')
+        .querySelectorAll('.constraint-card')
+        .forEach(card => {
+            createTagFromConstraint(card);
+        })
+
+
+
+}
+
+function createTagFromConstraint(card) {
+    let valueOfA = card.querySelector('.event-a').value;
+    let valueOfB = card.querySelector('.event-b').value;
+    let valueOfConstraint = card.querySelector('input').value;
+    const index = card.getAttribute('data-id');
+
+    let events = getAllTagEvents();
+
+    if (valueOfA && valueOfB && valueOfConstraint) {
+        let eventA = events[valueOfA];
+        let eventB = events[valueOfB];
+        let toggleButtons = Array.from(card.querySelectorAll('.toggle-group .active'))
+            .map(el => el.innerText.toLowerCase());
+
+        if (toggleButtons[1] === 'time') {
+            valueOfConstraint = `${valueOfConstraint} ${card.querySelector('.granularity-select select').value}`;
+        }
+
+        let value = `${eventA}(${parseInt(valueOfA)+1}) ${toggleButtons[0]} ${valueOfConstraint} from ${eventB}(${parseInt(valueOfB)+1})`;
+
+        createFilterTag(`pattern-constraint-${index}`, "", value, () => {
+            removeFilterTag(`pattern-constraint-${index}`);
+            card.remove();
+            checkFilterTagVisibility();
+        });
     }
 }

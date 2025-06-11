@@ -17,10 +17,16 @@
                             <text>Pattern</text>
                             <div th:replace="~{components/event_search_bar :: event_search_bar}"></div>
                         </div>
+                        <div id="pattern-filters-tags" class="hidden">
+                            <text>Filters</text>
+                            <div id="filter-tag-container">
+
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
-<!--                Pattern Stats-->
                 <th:block th:replace="~{components/expandable_card.html :: expandable_card(
                         'pattern-stats',
                         'Pattern Stats',

@@ -127,7 +127,22 @@
     transition: background-color 0.3s ease;
 }
 
+#filter-tag-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
 
+#pattern-filters-tags{
+    display:flex;
+    gap:8px;
+    align-items: center;
+}
+
+.invalid-input {
+    border: 2px solid red !important;
+}
 
 #add-constraint-button:hover {
     background-color: #e0e0e0;
