@@ -37,6 +37,17 @@
     font-size: 20px;
 }
 
+.expandable-content{
+    overflow: hidden;
+    min-height: auto;
+}
+
+.content-container{
+    padding: 20px 0;
+
+    width: 90%;
+}
+
 .expandable-card.collapsed .expandable-content{
     height:0;
 }

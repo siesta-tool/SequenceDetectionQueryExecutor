@@ -54,6 +54,28 @@
                     'filters-fragment'
                 )}" />
 
+                <th:block th:replace="~{components/expandable_card.html :: expandable_card(
+                    'pattern-filters',
+                    'Filters',
+                    ~{fragments/card_content/pattern_filters::pattern_filters},
+                    false,
+                    null,
+                    'filters-fragment'
+                )}" />
+
+                <th:block th:replace="~{components/expandable_card.html :: expandable_card(
+                    'pattern-results-expandable-card',
+                    'Results',
+                    ~{fragments/card_content/pattern_detection_results::group_results},
+                    false,
+                    null,
+                    'pattern-results'
+                )}" />
+
+<!--                <div id="pattern-results" style="width: 100%">-->
+
+<!--                </div>-->
+
 
 
             </div>

@@ -24,6 +24,7 @@ function loadEventsForLog() {
             document.getElementById("pattern-filters").classList.remove('hidden')
             document.getElementById("pattern-stats").classList.remove('hidden')
             document.getElementById("pattern-search-button").classList.remove('hidden')
+            document.getElementById("pattern-results-expandable-card").classList.remove('hidden')
         })
         .catch(err => {
             console.error('Error fetching events:', err);
@@ -187,10 +188,11 @@ function checkFilterTagVisibility() {
     }
 }
 
-function createFilterTag(id, label, value, onDeleteCallback) {
+function createFilterTag(id, label, value, json, onDeleteCallback) {
     const tag = document.createElement('div');
     tag.className = 'tag';
     tag.dataset.id = id;
+    tag.dataset.json = JSON.stringify(json);
 
     const text = document.createElement('span');
     text.textContent = `${label}${value}`;
@@ -224,29 +226,53 @@ function removeFilterTag(id) {
 //hooks for filters
 function saveFilters(){
     console.log("Saving filters");
-    const fromValue = document.getElementById('date-from').value;
+    let fromValue = document.getElementById('date-from').value;
+    let unixTime = new Date(fromValue).getTime();
     removeFilterTag('date-from'); // prevent duplicates
     if (fromValue) {
-        createFilterTag('date-from', 'From: ', fromValue, () => {
+        createFilterTag('date-from', 'From: ', fromValue, {from:unixTime},() => {
             document.getElementById('date-from').value = '';
             checkFilterTagVisibility();
         });
     }
-    const toValue = document.getElementById('date-to').value;
+    let toValue = document.getElementById('date-to').value;
+    unixTime = new Date(toValue).getTime();
     removeFilterTag('date-to');
     if (toValue) {
-        createFilterTag('date-to', 'To: ', toValue, () => {
+        createFilterTag('date-to', 'To: ', toValue,{till:unixTime} ,() => {
             document.getElementById('date-to').value = '';
             checkFilterTagVisibility();
         });
     }
     removeFilterTag('return-all');
     if(document.getElementById('return-all').checked){
-        createFilterTag('return-all', 'Return All', '', () => {
+        createFilterTag('return-all', 'Return All', '',{returnAll:true} ,() => {
             document.getElementById('return-all').checked = false;
             checkFilterTagVisibility();
         });
     }
+
+
+    let groupDefinition = document.getElementById('groups').value.replaceAll(' ','');
+    if(groupDefinition){
+        if(isValidGroupDefinition(groupDefinition)){
+            document.getElementById('groups').classList.remove('invalid-input');
+            removeFilterTag('groups');
+            createFilterTag(
+                'groups',
+                'Groups: ',
+                groupDefinition,
+                {"groups-config":groupDefinition},
+                () => {
+                    document.getElementById('groups').value = '';
+                    checkFilterTagVisibility();
+                }
+            )
+        }else{
+            document.getElementById('groups').classList.add('invalid-input');
+        }
+    }
+
 
     const kValue = document.getElementById('k').value;
     const uncertaintyValue = document.getElementById('uncertainty').value;
@@ -271,6 +297,8 @@ function saveFilters(){
             'uncertainty-combo',
             'WNM configuration ',
             `(k: ${kValue} ${granularityk}, uncertainty: ${uncertaintyValue} ${granularityUncertainty})`,
+            {"wnm-config":{granularityK:granularityk,granularityUncertainty:granularityUncertainty,
+                    k:kValue,uncertaintyPerEvent:uncertaintyValue}},
             () => {
                 kInput.value = '';
                 uncertaintyInput.value = '';
@@ -296,22 +324,25 @@ function createTagFromConstraint(card) {
     let valueOfB = card.querySelector('.event-b').value;
     let valueOfConstraint = card.querySelector('input').value;
     const index = card.getAttribute('data-id');
-
     let events = getAllTagEvents();
-
     if (valueOfA && valueOfB && valueOfConstraint) {
         let eventA = events[valueOfA];
         let eventB = events[valueOfB];
         let toggleButtons = Array.from(card.querySelectorAll('.toggle-group .active'))
             .map(el => el.innerText.toLowerCase());
+        let jsonValue={posA:parseInt(valueOfA),posB:parseInt(valueOfB), constraint:parseInt(valueOfConstraint)};
 
         if (toggleButtons[1] === 'time') {
-            valueOfConstraint = `${valueOfConstraint} ${card.querySelector('.granularity-select select').value}`;
+            let granularity = card.querySelector('.granularity-select select').value;
+            valueOfConstraint = `${valueOfConstraint} ${granularity}`;
+            jsonValue.constraint_type = "timeConstraint"
+            jsonValue.granularity = granularity;
+        }else{
+            jsonValue.constraint_type = "gapConstraint"
         }
-
         let value = `${eventA}(${parseInt(valueOfA)+1}) ${toggleButtons[0]} ${valueOfConstraint} from ${eventB}(${parseInt(valueOfB)+1})`;
-
-        createFilterTag(`pattern-constraint-${index}`, "", value, () => {
+        createFilterTag(`pattern-constraint-${index}`, "", value,
+            jsonValue, () => {
             removeFilterTag(`pattern-constraint-${index}`);
             card.remove();
             checkFilterTagVisibility();
@@ -319,8 +350,118 @@ function createTagFromConstraint(card) {
     }
 }
 
+function getFilters(){
+    let filters = []
+    let constraints = []
+    document.getElementById('filter-tag-container').querySelectorAll('.tag')
+        .forEach(tag => {
+            if(tag.dataset.id.includes('pattern-constraint')){
+                constraints.push(JSON.parse(tag.dataset.json));
+            }else{
+                filters.push(JSON.parse(tag.dataset.json));
+            }
+
+    })
+    filters.push({constraints:constraints});
+    return filters;
+}
+
 function searchPattern(){
     // todo: implement this -> read data from filters and pattern, construct query and send it (asynced)
     // todo: container with 2 tabs (results + excel export) and stats (load pie based on the returned results)
+
+
     console.log("Triggered Search :D")
+    const filters = getFilters();
+    const queryWrapper = {
+        log_name: document.getElementById('logSelector').value,
+        pattern:{eventsWithSymbols:getPattern()}
+    }
+    filters.forEach(filter => {
+        if(filter.hasOwnProperty('from')){
+            queryWrapper.from = filter.from;
+        }
+        if(filter.hasOwnProperty('till')){
+            queryWrapper.till = filter.till;
+        }
+        if(filter.hasOwnProperty('returnAll')){
+            queryWrapper.returnAll = filter.returnAll;
+        }
+        if(filter.hasOwnProperty('constraints')){
+            queryWrapper.pattern.constraints = filter.constraints;
+        }
+        if(filter.hasOwnProperty('wnm-config')){
+            queryWrapper["wnm-config"] = filter["wnm-config"];
+            queryWrapper.whyNotMatchFlag = true;
+        }
+        if(filter.hasOwnProperty('groups-config')){
+            queryWrapper["groups-config"]={groups:filter["groups-config"]}
+            queryWrapper.hasGroups = true;
+        }
+    })
+
+    // {"log_name":"synthetic",
+    //     "from":1749157200000,
+    //     "till":1750021200000,
+    //     "pattern":{"eventsWithSymbols":
+    //         [{"name":"4zX","position":0,"symbol":"_"},
+    //         {"name":"J2c","position":1,"symbol":"_"},
+    //         {"name":"YXM","position":2,"symbol":"_"},
+    //         {"name":"HUH","position":3,"symbol":"_"}],
+    //     "constraints":[{"posA":1,"posB":3,"type":"within","constraint_type":"timeConstraint",
+    //     "constraint":12,"granularity":"seconds"}]},
+    //     "returnAll":true,"hasGroups":false,
+    //     "groups-config":null,
+    //     "whyNotMatchFlag":true,
+    //     "wnm-config":{"granularityK":"seconds","granularityUncertainty":"seconds","k":"12","uncertaintyPerEvent":"22"}}
+
+
+    fetch('/ui/detection', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(queryWrapper)
+    })
+        .then(response => response.text())
+        .then(html => {
+            // Load the returned fragment into the results div
+            document.getElementById('pattern-results').innerHTML = html;
+            initializeResultsTable("results-table");
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('pattern-results').innerHTML =
+                '<div class="error-message">Error loading results</div>';
+        });
+}
+
+function isValidGroupDefinition(input) {
+    try {
+        // Step 1: Replace () with [] to make it JSON-like
+        let jsonLike = input
+            .replace(/\(/g, '[')
+            .replace(/\)/g, ']');
+
+        // Step 2: Use JSON5 to parse it, or use `eval` cautiously
+        let groups = eval(jsonLike); // ⚠️ Use only with trusted input
+
+        // Step 3: Check that it's an array of arrays
+        if (!Array.isArray(groups)) return false;
+        return groups.every(group => Array.isArray(group));
+    } catch (e) {
+        return false;
+    }
+}
+function initializeResultsTable(tableId) {
+    $(`#${tableId}`).DataTable({
+        destroy: true,
+        pageLength: 10,
+        lengthMenu: [5, 10, 25, 50],
+        order: [[0, "asc"]],
+        language: {
+            search: "Search Trace:",
+            lengthMenu: "Rows per page: _MENU_"
+        }
+    });
 }

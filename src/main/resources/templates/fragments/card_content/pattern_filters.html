@@ -10,16 +10,16 @@
             <table>
                 <tr>
                     <td><label for="date-from">From:</label></td>
-                    <td><input type="date" id="date-from" name="dateFrom" class="mdl-textfield__input" /></td>
+                    <td><input type="datetime-local" id="date-from" name="dateFrom" class="mdl-textfield__input" /></td>
                 </tr>
                 <tr>
                     <td><label for="date-to">To:</label></td>
-                    <td><input type="date" id="date-to" name="dateTo" class="mdl-textfield__input" /></td>
+                    <td><input type="datetime-local" id="date-to" name="dateTo" class="mdl-textfield__input" /></td>
                 </tr>
             </table>
             <h6>Trace groups</h6>
             <input style="text-align: center;"
-                   type="text" id="groups" name="groups" placeholder=" e.g. [(1-5,7),(2-8,8-12)]" class="mdl-textfield__input" />
+                   type="text" id="groups" name="groups" placeholder=" e.g. [(5,7),(2,5,12)]" class="mdl-textfield__input" />
 
             <label for="return-all">
                 <input type="checkbox" id="return-all" name="returnAll" />
@@ -41,15 +41,15 @@
             <table>
                 <tr>
                     <td><label for="k">K</label></td>
-                    <td><input style="text-align: center;" type="number" id="k" name="k" class="mdl-textfield__input" /></td>
+                    <td><input style="text-align: center; max-width:70px;" type="number" id="k" name="k"/></td>
                     <td><select id="k-granularity" name="kGranularity">
                         <option value="seconds">seconds</option>
                         <option value="minutes">minutes</option>
                     </select></td>
                 </tr>
                 <tr>
-                    <td style="white-space: nowrap;"><label for="uncertainty">Uncertainty per event</label></td>
-                    <td><input style="text-align: center;" type="number" id="uncertainty" name="uncertainty" class="mdl-textfield__input" /></td>
+                    <td><label for="uncertainty">Uncertainty per event</label></td>
+                    <td><input style="text-align: center;max-width:70px;" type="number" id="uncertainty" name="uncertainty" /></td>
                     <td><select id="uncertainty-granularity" name="uncertaintyGranularity">
                         <option value="seconds">seconds</option>
                         <option value="minutes">minutes</option>

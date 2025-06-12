@@ -160,7 +160,8 @@
 }
 
 .pretty-table th, td {
-    padding: 12px;
+    padding: 6px;
+
     text-align: left;
     color: #333;
     background-color: #fff;

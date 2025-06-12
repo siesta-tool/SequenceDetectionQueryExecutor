@@ -107,6 +107,18 @@ function getAllTagEvents() {
         const event = tag.dataset.event;
         events.push(event);
     });
+    return events;
+}
 
+function getPattern(){
+    const tagsContainer = document.getElementById('tags');
+    const tags = tagsContainer.querySelectorAll('.tag');
+    const events = [];
+
+    tags.forEach((tag,index) => {
+        const event = tag.dataset.event;
+        const symbol = tag.dataset.symbol;
+        events.push({name: event, position:index, symbol: symbol});
+    });
     return events;
 }

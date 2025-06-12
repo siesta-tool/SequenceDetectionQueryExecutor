@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<body>
+<th:block th:fragment="standard_results">
+    <div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+        <div class="mdl-tabs__tab-bar">
+            <a href="#table-panel" class="mdl-tabs__tab is-active">Results Table</a>
+            <a href="#stats-panel" class="mdl-tabs__tab">Statistics Graph</a>
+        </div>
+
+        <!-- Tab 1: Table -->
+        <div class="mdl-tabs__panel is-active" id="table-panel">
+            <table id="results-table" class="display" style="width:100%">
+                <thead>
+                <tr>
+                    <th>Trace ID</th>
+                    <th>Detected Pattern</th>
+                    <th>Occurrences Length</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="result : ${results}" >
+                    <td th:text="${result.traceID}"></td>
+                    <td >2</td>
+                    <td th:text="${#lists.size(result.occurrences)}"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Tab 2: Graph -->
+        <div class="mdl-tabs__panel" id="stats-panel">
+            <canvas id="statsChart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+</th:block>
+
+<th:block th:fragment="group_results">
+    <p>This is the Pattern Detection Results card content.</p>
+</th:block>
+
+</body>
+</html>

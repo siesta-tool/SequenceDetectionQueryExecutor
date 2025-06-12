@@ -3,10 +3,16 @@ package com.datalab.siesta.queryprocessor.controllers;
 import com.datalab.siesta.queryprocessor.model.DBModel.Metadata;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.QueryPlan;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponse;
+import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponseGroups;
+import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponsePatternDetection;
+import com.datalab.siesta.queryprocessor.model.Queries.QueryTypes.QueryExploration;
+import com.datalab.siesta.queryprocessor.model.Queries.QueryTypes.QueryPatternDetection;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryTypes.QueryStats;
+import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryPatternDetectionWrapper;
 import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryStatsWrapper;
 import com.datalab.siesta.queryprocessor.services.LoadInfo;
 import com.datalab.siesta.queryprocessor.storage.DBConnector;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +21,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -23,12 +30,17 @@ public class UserInterfaceController {
     private final LoadInfo loadInfo;
     private final DBConnector dbConnector;
     private final QueryStats qs;
+    private final QueryPatternDetection qpd;
+    private final ObjectMapper objectMapper;
 
     @Autowired
-    public UserInterfaceController(LoadInfo loadInfo, DBConnector dbConnector, QueryStats qs) {
+    public UserInterfaceController(LoadInfo loadInfo, DBConnector dbConnector, QueryStats qs,
+                                   QueryPatternDetection qpd, ObjectMapper objectMapper) {
         this.loadInfo = loadInfo;
         this.dbConnector = dbConnector;
         this.qs = qs;
+        this.qpd = qpd;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping("/")
@@ -124,6 +136,26 @@ public class UserInterfaceController {
             return ResponseEntity.notFound().build();
         }else{
             return ResponseEntity.ok().body(total);
+        }
+    }
+
+    @PostMapping(path = "/ui/detection")
+    public String patternDetection(@RequestBody QueryPatternDetectionWrapper qpdw,
+                                   Model model) throws IOException {
+        Metadata m = loadInfo.getMetadata().getOrDefault(qpdw.getLog_name(),null);
+        if (m == null) {
+            return "error";
+        } else {
+            QueryPlan qp = qpd.createQueryPlan(qpdw, m);
+            QueryResponse qrs = qp.execute(qpdw);
+            if(qrs instanceof QueryResponsePatternDetection ) {
+                model.addAttribute("results", ((QueryResponsePatternDetection) qrs).getOccurrences());
+                return "fragments/card_content/pattern_detection_results::standard_results";
+            }else if(qrs instanceof QueryResponseGroups){
+                return "fragments/card_content/pattern_detection_results::group_results";
+            }else{
+                return "error";
+            }
         }
     }
 
