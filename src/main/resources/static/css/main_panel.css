@@ -21,6 +21,7 @@
     overflow: visible;
     position: relative !important;
     z-index: auto;
+    margin-bottom: 16px;
 }
 
 .home-container .info-grid {

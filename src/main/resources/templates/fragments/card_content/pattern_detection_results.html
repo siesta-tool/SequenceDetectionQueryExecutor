@@ -37,6 +37,64 @@
 
 </th:block>
 
+<div th:fragment="error_panel"
+
+     th:if="${not #lists.isEmpty(nonExistingPairs) or not #lists.isEmpty(constraintsNotFulfilled) or not #lists.isEmpty(nonExistingEvents) or not #lists.isEmpty(wrongConstraints)}"
+     style="border: 1px solid #e57373; background-color: #ffebee; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #b71c1c;">
+
+    <div th:if="${nonExistingPairs}">
+        <h6>⚠️ Pairs of events that do not exist in the database</h6>
+        <ul>
+            <li th:each="pair : ${nonExistingPairs}">
+                <div style="align-items: center; display: flex;">
+                    <span style="display: inline-block;" th:text="${pair.eventA.name}">A</span>
+                    <span style="font-size: 24px;margin-bottom: 8px;">&#8594;</span>
+                    <span style="display: inline-block;" th:text="${pair.eventB.name}">B</span>
+                </div>
+            </li>
+        </ul>
+    </div>
+
+    <div th:if="${constraintsNotFulfilled}">
+        <h4>⚠️ Constraints that cannot be fulfilled</h4>
+        <ul>
+            <li th:each="pair : ${constraintsNotFulfilled}">
+                Constraint between <span th:text="${pair.eventA.name}">A</span> and <span th:text="${pair.eventB.name}">B</span>
+            </li>
+        </ul>
+    </div>
+
+    <div th:if="${nonExistingEvents}">
+        <h4>⚠️ Events not found in database</h4>
+        <ul>
+            <li th:each="ev : ${nonExistingEvents}" th:text="${ev}">event-name</li>
+        </ul>
+    </div>
+
+    <div th:if="${wrongConstraints}">
+        <h4>⚠️ Constraints with errors</h4>
+        <ul>
+            <li th:each="c : ${wrongConstraints}">
+                <span th:switch="${c.method}">
+                    <span th:case="'atleast'">
+                        At least constraint between <span th:text="${c.posA}">A</span> and <span th:text="${c.posB}">B</span>
+                        with <span th:text="${#fields.safeObject(c.constraint)}"></span>
+                        <span th:text="${#fields.safeObject(c.granularity)}"></span>
+                    </span>
+                    <span th:case="'within'">
+                        Within constraint between <span th:text="${c.posA}">A</span> and <span th:text="${c.posB}">B</span>
+                        with <span th:text="${#fields.safeObject(c.constraint)}"></span>
+                        <span th:text="${#fields.safeObject(c.granularity)}"></span>
+                    </span>
+                    <span th:case="*">
+                        Unknown constraint type on positions <span th:text="${c.posA}"></span> and <span th:text="${c.posB}"></span>
+                    </span>
+                </span>
+            </li>
+        </ul>
+    </div>
+</div>
+
 <th:block th:fragment="group_results">
     <p>No query has been submitted yet.</p>
 </th:block>

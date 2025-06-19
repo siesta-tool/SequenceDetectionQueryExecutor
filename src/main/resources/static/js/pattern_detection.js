@@ -4,6 +4,7 @@ const symbols = ['_', '*', '+', '||','!'];
 
 function loadEventsForLog() {
     const selectedLog = document.getElementById('logSelector').value;
+    sessionStorage.setItem("siesta_selected_log", selectedLog);
     if (!selectedLog) return;
 
     const input = document.getElementById('event-input');
@@ -317,6 +318,7 @@ function saveFilters(){
         .forEach(card => {
             createTagFromConstraint(card);
         })
+    persistFiltersToSessionStorage();
 }
 
 function createTagFromConstraint(card) {
@@ -400,20 +402,6 @@ function searchPattern(){
         }
     })
 
-    // {"log_name":"synthetic",
-    //     "from":1749157200000,
-    //     "till":1750021200000,
-    //     "pattern":{"eventsWithSymbols":
-    //         [{"name":"4zX","position":0,"symbol":"_"},
-    //         {"name":"J2c","position":1,"symbol":"_"},
-    //         {"name":"YXM","position":2,"symbol":"_"},
-    //         {"name":"HUH","position":3,"symbol":"_"}],
-    //     "constraints":[{"posA":1,"posB":3,"type":"within","constraint_type":"timeConstraint",
-    //     "constraint":12,"granularity":"seconds"}]},
-    //     "returnAll":true,"hasGroups":false,
-    //     "groups-config":null,
-    //     "whyNotMatchFlag":true,
-    //     "wnm-config":{"granularityK":"seconds","granularityUncertainty":"seconds","k":"12","uncertaintyPerEvent":"22"}}
 
 
     fetch('/ui/detection', {
@@ -444,7 +432,7 @@ function isValidGroupDefinition(input) {
             .replace(/\)/g, ']');
 
         // Step 2: Use JSON5 to parse it, or use `eval` cautiously
-        let groups = eval(jsonLike); // ⚠️ Use only with trusted input
+        let groups = eval(jsonLike);
 
         // Step 3: Check that it's an array of arrays
         if (!Array.isArray(groups)) return false;

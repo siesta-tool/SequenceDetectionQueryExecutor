@@ -24,9 +24,9 @@ import java.io.Serializable;
 public abstract class Constraint implements Cloneable, Serializable {
 
     //position of the first event in the Pattern
-//    @JsonIgnore
+
     protected int posA;
-//    @JsonIgnore
+
     protected int posB;
 
     @JsonProperty("type")

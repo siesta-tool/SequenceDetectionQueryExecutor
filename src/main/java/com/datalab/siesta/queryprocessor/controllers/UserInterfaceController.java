@@ -3,6 +3,7 @@ package com.datalab.siesta.queryprocessor.controllers;
 import com.datalab.siesta.queryprocessor.model.DBModel.Metadata;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.QueryPlan;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponse;
+import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponseBadRequestForDetection;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponseGroups;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponsePatternDetection;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryTypes.QueryExploration;
@@ -154,7 +155,21 @@ public class UserInterfaceController {
             }else if(qrs instanceof QueryResponseGroups){
                 return "fragments/card_content/pattern_detection_results::group_results";
             }else{
-                return "error";
+                QueryResponseBadRequestForDetection badRequestForDetection = (QueryResponseBadRequestForDetection) qrs;
+                if(badRequestForDetection.getNonExistingPairs() != null &&!badRequestForDetection.getNonExistingPairs().isEmpty()){
+                    model.addAttribute("nonExistingPairs", badRequestForDetection.getNonExistingPairs());
+                }
+                if (badRequestForDetection.getConstraintsNotFulfilled() != null && !badRequestForDetection.getConstraintsNotFulfilled().isEmpty()) {
+                    model.addAttribute("constraintsNotFulfilled", badRequestForDetection.getConstraintsNotFulfilled());
+                }
+                if (badRequestForDetection.getNonExistingEvents() != null && !badRequestForDetection.getNonExistingEvents().isEmpty()) {
+                    model.addAttribute("nonExistingEvents", badRequestForDetection.getNonExistingEvents());
+                }
+                if (badRequestForDetection.getWrongConstraints() != null && !badRequestForDetection.getWrongConstraints().isEmpty()) {
+                    model.addAttribute("wrongConstraints", badRequestForDetection.getWrongConstraints());
+                }
+
+                return "fragments/card_content/pattern_detection_results::error_panel";
             }
         }
     }
