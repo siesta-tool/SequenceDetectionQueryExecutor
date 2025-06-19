@@ -381,7 +381,7 @@ function getFilters(){
 function searchPattern(){
     // todo: implement this -> read data from filters and pattern, construct query and send it (asynced)
     // todo: container with 2 tabs (results + excel export) and stats (load pie based on the returned results)
-
+    loadStatsFragment().then(() => {})
 
     console.log("Pattern Detection triggered")
     const filters = getFilters();
