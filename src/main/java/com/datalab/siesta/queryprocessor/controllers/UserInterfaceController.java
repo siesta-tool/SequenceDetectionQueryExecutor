@@ -1,6 +1,9 @@
 package com.datalab.siesta.queryprocessor.controllers;
 
 import com.datalab.siesta.queryprocessor.model.DBModel.Metadata;
+import com.datalab.siesta.queryprocessor.model.Events.Event;
+import com.datalab.siesta.queryprocessor.model.Occurrence;
+import com.datalab.siesta.queryprocessor.model.Occurrences;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.QueryPlan;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponse;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponseBadRequestForDetection;
@@ -11,6 +14,7 @@ import com.datalab.siesta.queryprocessor.model.Queries.QueryTypes.QueryPatternDe
 import com.datalab.siesta.queryprocessor.model.Queries.QueryTypes.QueryStats;
 import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryPatternDetectionWrapper;
 import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryStatsWrapper;
+import com.datalab.siesta.queryprocessor.model.ui.DetectionResponseDTO;
 import com.datalab.siesta.queryprocessor.services.LoadInfo;
 import com.datalab.siesta.queryprocessor.storage.DBConnector;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,8 +27,10 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Controller
 public class UserInterfaceController {
@@ -100,7 +106,6 @@ public class UserInterfaceController {
     }
 
 
-
     @GetMapping("/ui/event-graph-data")
     public ResponseEntity<Map<Long,Long>> eventGraphData(
             @RequestParam String logname,
@@ -149,8 +154,15 @@ public class UserInterfaceController {
         } else {
             QueryPlan qp = qpd.createQueryPlan(qpdw, m);
             QueryResponse qrs = qp.execute(qpdw);
-            if(qrs instanceof QueryResponsePatternDetection ) {
-                model.addAttribute("results", ((QueryResponsePatternDetection) qrs).getOccurrences());
+            if(qrs instanceof QueryResponsePatternDetection results) {
+
+                List<DetectionResponseDTO> formated = new ArrayList<>();
+                for(Occurrences o : results.getOccurrences()){
+                    String pattern = o.getOccurrences().get(0).getOccurrence().stream().map(Event::getName)
+                            .collect(Collectors.joining(","));
+                    formated.add(new DetectionResponseDTO(o.getTraceID(),pattern,o.getOccurrences()));
+                }
+                model.addAttribute("results", (formated));
                 return "fragments/card_content/pattern_detection_results::standard_results";
             }else if(qrs instanceof QueryResponseGroups){
                 //todo: pending for groups

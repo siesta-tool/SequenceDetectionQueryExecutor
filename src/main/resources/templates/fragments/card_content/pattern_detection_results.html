@@ -22,7 +22,7 @@
                 <tbody>
                 <tr th:each="result : ${results}" >
                     <td th:text="${result.traceID}"></td>
-                    <td >2</td>
+                    <td th:text="${result.pattern}"></td>
                     <td th:text="${#lists.size(result.occurrences)}"></td>
                 </tr>
                 </tbody>
