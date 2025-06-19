@@ -153,6 +153,7 @@ public class UserInterfaceController {
                 model.addAttribute("results", ((QueryResponsePatternDetection) qrs).getOccurrences());
                 return "fragments/card_content/pattern_detection_results::standard_results";
             }else if(qrs instanceof QueryResponseGroups){
+                //todo: pending for groups
                 return "fragments/card_content/pattern_detection_results::group_results";
             }else{
                 QueryResponseBadRequestForDetection badRequestForDetection = (QueryResponseBadRequestForDetection) qrs;

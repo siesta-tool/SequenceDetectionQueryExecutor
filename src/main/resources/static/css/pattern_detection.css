@@ -161,10 +161,8 @@
 
 .pretty-table th, td {
     padding: 6px;
-
     text-align: left;
     color: #333;
-    background-color: #fff;
 }
 
 .pretty-table tr:hover {
@@ -187,4 +185,13 @@
 #pattern-search-button{
     margin-top: 12px;
     justify-content: flex-end;
+}
+
+@keyframes flashHighlight {
+    0% { background-color: rgba(63, 81, 181, 0.1);  }
+    100% { background-color: white; }
+}
+
+.flash-highlight {
+    animation: flashHighlight 2s ease-in-out;
 }

@@ -56,6 +56,16 @@ async function loadStatsFragment() {
 
     const html = await response.text();
     document.getElementById("pattern-stats-fragment").innerHTML = html;
+    const resultCard = document.getElementById('pattern-stats');
+    if (resultCard) {
+        resultCard.classList.remove('collapsed');
+        resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        resultCard.classList.add('flash-highlight');
+
+        setTimeout(() => {
+            resultCard.classList.remove('flash-highlight');
+        }, 2000); // duration must match CSS animation
+    }
 }
 
 let constraintCount = 1;
@@ -373,7 +383,7 @@ function searchPattern(){
     // todo: container with 2 tabs (results + excel export) and stats (load pie based on the returned results)
 
 
-    console.log("Triggered Search :D")
+    console.log("Pattern Detection triggered")
     const filters = getFilters();
     const queryWrapper = {
         log_name: document.getElementById('logSelector').value,
@@ -416,6 +426,17 @@ function searchPattern(){
             // Load the returned fragment into the results div
             document.getElementById('pattern-results').innerHTML = html;
             initializeResultsTable("results-table");
+            const resultCard = document.getElementById('pattern-results-expandable-card');
+            if (resultCard) {
+                resultCard.classList.remove('collapsed');
+                resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                resultCard.classList.add('flash-highlight');
+
+                setTimeout(() => {
+                    resultCard.classList.remove('flash-highlight');
+                }, 2000); // duration must match CSS animation
+            }
+
         })
         .catch(error => {
             console.error('Error:', error);
