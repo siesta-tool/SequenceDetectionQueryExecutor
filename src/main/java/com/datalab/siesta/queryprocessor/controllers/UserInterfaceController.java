@@ -43,7 +43,7 @@ public class UserInterfaceController {
         this.objectMapper = objectMapper;
     }
 
-    @GetMapping("/")
+    @GetMapping({"/"})
     public String home() {
         return "home";
     }
@@ -119,9 +119,9 @@ public class UserInterfaceController {
     }
 
 
-    @GetMapping("/ui/{page}")
-    public String getUI(@PathVariable String page) {
-        return page;
+    @GetMapping("/siesta/**")
+    public String getUI() {
+        return "home";
     }
 
     @GetMapping("/total_occurrences")

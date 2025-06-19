@@ -14,60 +14,71 @@ function refreshMetadata() {
         })
 }
 
-document.addEventListener('DOMContentLoaded', function () {
-    loadSidebar("");
-});
-
-function loadSidebar(logname) {
+function loadSidebar(logname, callback) {
     fetch(`/fragments/sidebar-tabs?currentLogname=${logname}`)
         .then(res => res.text())
         .then(html => {
             document.getElementById("sidebar-tabs").innerHTML = html;
-        });
+            if (typeof callback === 'function') {
+                callback();
+            }
+        })
+        .catch(err => console.error("Failed to load sidebar:", err));
 }
 
-function processTab(){
+function processTab(push = true){
     window.tabOpen = "process-tab";
     document.querySelectorAll('.tab')
         .forEach(tab => tab.classList.remove('active-tab'));
     //set active tab to preprocess
     document.getElementById("process-tab").classList.add('active-tab')
     document.getElementById("navbar-title").textContent = 'Preprocess';
+
+    if (push) {
+        history.pushState({ tab: 'preprocess' }, '', '/siesta/preprocess');
+    }
+
     //pending to open page in the middle
     document.getElementById("main-panel").innerHTML = "";
 }
 
-function patternDetectionTab(){
+function patternDetectionTab(push = true) {
     window.tabOpen = "detection-tab";
+
     document.querySelectorAll('.tab')
         .forEach(tab => tab.classList.remove('active-tab'));
-    //set active tab to preprocess
-    document.getElementById("detection-tab").classList.add('active-tab')
+
+    document.getElementById("detection-tab").classList.add('active-tab');
     document.getElementById("navbar-title").textContent = 'Pattern Detection';
 
+    if (push) {
+        history.pushState({ tab: 'pattern-detection' }, '', '/siesta/pattern-detection');
+    }
 
     fetch(`/fragments/pattern-detection`)
         .then(res => res.text())
         .then(html => {
             const container = document.getElementById("main-panel");
             container.innerHTML = html;
+
             if (typeof componentHandler !== 'undefined') {
                 componentHandler.upgradeDom();
             }
 
-            // Dynamically import the JS module and initialize
             import('/js/components/event_search_bar.js')
-                .then(module => {
-                    initEventSearchBar(); // safe, scoped, repeatable
+                .then(() => {
+                    initEventSearchBar();
                 })
                 .catch(err => console.error('Failed to load module:', err));
-
-
         })
         .catch(err => {
             console.error("Failed to load pattern detection", err);
         });
+}
 
+function navigateToMetadata(logname) {
+    history.pushState({ tab: 'metadata', logname }, '', `/siesta/metadata?logname=${encodeURIComponent(logname)}`);
+    metadataLog(logname);
 }
 
 function metadataLog(logname) {

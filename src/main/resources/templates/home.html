@@ -33,5 +33,26 @@
 <script th:src="@{/js/components/expandable_card.js}"></script>
 <script th:src="@{/js/components/refresh_button.js}"></script>
 <script th:src="@{/js/components/event_search_bar.js}"></script>
+<script th:src="@{/js/main.js}"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const path = window.location.pathname;
+        const params = new URLSearchParams(window.location.search);
+        const logname = params.get("logname") || "";
+        console.log("DOM loaded, path: " + path + "")
+        // Load sidebar first, then do tab logic
+        loadSidebar("", () => {
+            if (path.includes("pattern-detection")) {
+                patternDetectionTab(false);
+            }else if (path.includes("metadata") && logname) {
+                metadataLog(logname);
+            }else if (path.includes("preprocess")) {
+                processTab(false);
+            }
+        });
+    });
+
+</script>
 </body>
 </html>

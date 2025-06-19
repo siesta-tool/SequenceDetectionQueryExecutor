@@ -5,7 +5,7 @@
 <th:block th:fragment="sidebar">
     <div class="sidebar">
         <div class="mdl-cell--top">
-            <a href="/ui/home">
+            <a href="/">
                 <img th:src="@{/images/siesta-tool-logo.png}" alt="SIESTA" class="logo" style="cursor: pointer;">
             </a>
         </div>
@@ -25,7 +25,7 @@
         <div class="tab"
              th:each="logname : ${lognames}"
              th:classappend="${logname == currentLogname} ? 'active-tab'"
-             th:attr="onclick=|metadataLog('${logname}')|">
+             th:attr="onclick=|navigateToMetadata('${logname}')|">
             <span class="tab-icon material-icons">table_chart</span>
             <span class="tab-label" th:text="${logname}">Logname</span>
         </div>
