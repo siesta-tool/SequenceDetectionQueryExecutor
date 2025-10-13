@@ -120,7 +120,6 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
             indexDataset = indexRows.select("trace_id", "eventA", "eventB", "timestampA", "timestampB", "positionA", "positionB")
                     .as(Encoders.bean(IndexPair.class));
         }
-
         return indexDataset;
     }
 
@@ -318,6 +317,7 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
                 .agg(functions.collect_list("event").alias("events"))
                 .select("traceId", "events");
 
+        groupedDf.show();
         // Convert DataFrame to Map<String, List<Event>>
         Map<String, List<Event>> eventsMap = groupedDf
                 .collectAsList()
@@ -328,17 +328,24 @@ public abstract class SparkDatabaseRepository implements DatabaseRepository {
                             List<Row> eventRows = row.getList(1);
                             return eventRows.stream()
                                     .map(eventRow -> {
-                                        if (eventRow.getString(3) == null) {
+                                        if (eventRow.get(3) == null) {
                                             return new EventPos(
                                                     eventRow.getString(1), // eventName
                                                     eventRow.getString(0), // traceId
                                                     eventRow.getInt(2)    // position
                                             );
-                                        } else {
+                                        } else if (eventRow.get(2) == null) {
                                             return new EventTs(
                                                     eventRow.getString(1), // eventName
                                                     eventRow.getString(0), // traceId
-                                                    Timestamp.valueOf(eventRow.getString(3))// timestamp
+                                                    Timestamp.valueOf(eventRow.get(3).toString())// timestamp
+                                            );
+                                        } else {
+                                            return new EventBoth(
+                                                    eventRow.getString(1), // eventName
+                                                    eventRow.getString(0), // traceId
+                                                    Timestamp.valueOf(eventRow.get(3).toString()), // timestamp
+                                                    eventRow.getInt(2)    // position
                                             );
                                         }
                                     })

@@ -101,8 +101,8 @@ public class CassConnector extends SparkDatabaseRepository {
         Dataset<Row> explodedDF = df
                 .withColumn("event_data", functions.explode(functions.col("events")))
                 .withColumn("event_parts", functions.split(functions.col("event_data"), ","))
-                .withColumn("timestamp", functions.element_at(functions.col("event_parts"), 1))
-                .withColumn("event_name", functions.element_at(functions.col("event_parts"), 2))
+                .withColumn("event_name", functions.element_at(functions.col("event_parts"), 1))
+                .withColumn("timestamp", functions.element_at(functions.col("event_parts"), 2))
                 .withColumn("position", functions.row_number().over(
                         Window.partitionBy("sequence_id").orderBy(functions.monotonically_increasing_id())
                 ).minus(1))
@@ -160,7 +160,6 @@ public class CassConnector extends SparkDatabaseRepository {
                         functions.element_at(functions.col("time_parts"), 5).cast("long").alias("maxDuration")
                         ,functions.element_at(functions.col("time_parts"), 6).cast("long").alias("sumSquares")
                 );
-        explodedDF.show();
         return explodedDF.as(Encoders.bean(Count.class));
     }
 
@@ -174,10 +173,11 @@ public class CassConnector extends SparkDatabaseRepository {
         // Explode the occurrences list and parse each occurrence
         Dataset<Row> explodedDF = df
                 .withColumn("occurrence", functions.explode(functions.col("occurrences")))
-                .withColumn("occurrence_parts", functions.split(functions.col("occurrence"), ","))
-                .withColumn("trace_id", functions.element_at(functions.col("occurrence_parts"), 1))
-                .withColumn("positionA", functions.element_at(functions.col("occurrence_parts"), 2).cast("int"))
-                .withColumn("positionB", functions.element_at(functions.col("occurrence_parts"), 3).cast("int"))
+                .withColumn("trace_and_positions", functions.split(functions.col("occurrence"), "\\|\\|"))
+                .withColumn("trace_id", functions.element_at(functions.col("trace_and_positions"), 1))
+                .withColumn("positions", functions.split(functions.element_at(functions.col("trace_and_positions"), 2), "\\|"))
+                .withColumn("positionA", functions.element_at(functions.col("positions"), 1).cast("int"))
+                .withColumn("positionB", functions.element_at(functions.col("positions"), 2).cast("int"))
                 .select(
                         functions.col("trace_id"),
                         functions.col("event_a").alias("eventA"),
@@ -187,7 +187,6 @@ public class CassConnector extends SparkDatabaseRepository {
                         functions.col("positionA"),
                         functions.col("positionB")
                 );
-
         return explodedDF.as(Encoders.bean(IndexPair.class));
     }
 
