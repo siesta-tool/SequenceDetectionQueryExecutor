@@ -19,6 +19,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import scala.Tuple2;
+
+import org.apache.spark.sql.*;
+import org.apache.spark.sql.functions;
+import org.apache.spark.sql.types.*;
+import static org.apache.spark.sql.functions.*;
 import scala.collection.JavaConverters;
 
 
@@ -171,23 +176,27 @@ public class CassConnector extends SparkDatabaseRepository {
                 .load();
 
         // Explode the occurrences list and parse each occurrence
+        // Occurrences format: trace_id||valueA|valueB where values can be positions (int) or timestamps (string)
         Dataset<Row> explodedDF = df
                 .withColumn("occurrence", functions.explode(functions.col("occurrences")))
-                .withColumn("trace_and_positions", functions.split(functions.col("occurrence"), "\\|\\|"))
-                .withColumn("trace_id", functions.element_at(functions.col("trace_and_positions"), 1))
-                .withColumn("positions", functions.split(functions.element_at(functions.col("trace_and_positions"), 2), "\\|"))
-                .withColumn("positionA", functions.element_at(functions.col("positions"), 1).cast("int"))
-                .withColumn("positionB", functions.element_at(functions.col("positions"), 2).cast("int"))
-                .select(
-                        functions.col("trace_id"),
-                        functions.col("event_a").alias("eventA"),
-                        functions.col("event_b").alias("eventB"),
-                        functions.col("start").cast("string").alias("timestampA"),
-                        functions.col("end").cast("string").alias("timestampB"),
-                        functions.col("positionA"),
-                        functions.col("positionB")
-                );
-        return explodedDF.as(Encoders.bean(IndexPair.class));
+                .withColumn("trace_and_values", functions.split(functions.col("occurrence"), "\\|\\|"))
+                .withColumn("trace_id", functions.element_at(functions.col("trace_and_values"), 1))
+                .withColumn("values", functions.split(functions.element_at(functions.col("trace_and_values"), 2), "\\|"))
+                .withColumn("valueA", functions.element_at(functions.col("values"), 1))
+                .withColumn("valueB", functions.element_at(functions.col("values"), 2));
+
+        // Detect whether valueA/valueB are integers
+        Dataset<Row> parsedDF = explodedDF
+                .withColumn("is_position", col("valueA").rlike("^[0-9]+$").and(col("valueB").rlike("^[0-9]+$")))
+                .withColumn("positionA", when(col("is_position"), col("valueA").cast(DataTypes.IntegerType)))
+                .withColumn("positionB", when(col("is_position"), col("valueB").cast(DataTypes.IntegerType)))
+                .withColumn("timestampA", when(not(col("is_position")), col("valueA").cast(DataTypes.StringType)))
+                .withColumn("timestampB", when(not(col("is_position")), col("valueB").cast(DataTypes.StringType)))
+                .withColumnRenamed("event_a", "eventA")
+                .withColumnRenamed("event_b", "eventB")
+                .select("trace_id", "eventA", "eventB", "timestampA", "timestampB", "positionA", "positionB");
+
+        return parsedDF.as(Encoders.bean(IndexPair.class));
     }
 
     //Below are for declare//
