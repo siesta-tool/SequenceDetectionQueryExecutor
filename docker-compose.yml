@@ -1,22 +1,29 @@
-version: '3.7'
+version: '3.8'
 networks:
   siesta-net:
     name: siesta-net
+    external: true
 
 services:
-  funnel:
+  query:
     build: .
+    container_name: query
     stdin_open: true
     environment:
       master.uri: local[*]
-      database: s3 # cassandra-rdd or s3
+      server.port: 8090 # port of the application
+      database: cassandra # cassandra or s3
       delta: false # True for streaming, False for batching
+      spring.mvc.pathmatch.matching-strategy: ANT_PATH_MATCHER
       #for s3 (minio)
       s3.endpoint: http://minio:9000
       s3.user: minioadmin
       s3.key: minioadmin
       s3.timeout: 600000
-      server.port: 8090 # port of the application
+      # Scylla/Cassandra configuration
+      cassandra.contact.points: scylla
+      cassandra.port: 9042
+      cassandra.keyspace: siesta
     volumes:
       - ./build:/root/.m2
     ports:
