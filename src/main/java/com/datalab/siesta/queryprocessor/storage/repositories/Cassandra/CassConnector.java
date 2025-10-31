@@ -132,8 +132,8 @@ public class CassConnector extends SparkDatabaseRepository {
         Dataset<Row> explodedDF = df
                 .withColumn("occurrence", functions.explode(functions.col("occurrences")))
                 .withColumn("occurrence_parts", functions.split(functions.col("occurrence"), ","))
-                .withColumn("timestamp", functions.element_at(functions.col("occurrence_parts"), 1))
-                .withColumn("position", functions.element_at(functions.col("occurrence_parts"), 2).cast("int"))
+                .withColumn("timestamp", functions.element_at(functions.col("occurrence_parts"), 2))
+                .withColumn("position", functions.element_at(functions.col("occurrence_parts"), 1).cast("int"))
                 .select(
                         functions.col("trace_id").alias("traceId"),
                         functions.col("event_type").alias("eventName"),
@@ -163,40 +163,72 @@ public class CassConnector extends SparkDatabaseRepository {
                         functions.element_at(functions.col("time_parts"), 3).cast("int").alias("count"),
                         functions.element_at(functions.col("time_parts"), 4).cast("long").alias("minDuration"),
                         functions.element_at(functions.col("time_parts"), 5).cast("long").alias("maxDuration")
-                        ,functions.element_at(functions.col("time_parts"), 6).cast("long").alias("sumSquares")
+                        ,functions.element_at(functions.col("time_parts"), 6).cast("double").alias("sumSquares")
                 );
         return explodedDF.as(Encoders.bean(Count.class));
     }
 
     protected Dataset<IndexPair> readIndexTable(String logname) {
+        boolean positions = sparkSession.read()
+                .format("org.apache.spark.sql.cassandra")
+                .options(Map.of("table", logname + "_meta", "keyspace", "siesta"))
+                .load()
+                .filter(col("key").equalTo("mode"))
+                .select("value")
+                .first()
+                .getString(0)
+                .equals("positions");
+
         String tableName = String.format("%s_index", logname);
         Dataset<Row> df = sparkSession.read()
                 .format("org.apache.spark.sql.cassandra")
                 .options(Map.of("table", tableName, "keyspace", "siesta"))
                 .load();
 
-        // Explode the occurrences list and parse each occurrence
-        // Occurrences format: trace_id||valueA|valueB where values can be positions (int) or timestamps (string)
         Dataset<Row> explodedDF = df
-                .withColumn("occurrence", functions.explode(functions.col("occurrences")))
-                .withColumn("trace_and_values", functions.split(functions.col("occurrence"), "\\|\\|"))
-                .withColumn("trace_id", functions.element_at(functions.col("trace_and_values"), 1))
-                .withColumn("values", functions.split(functions.element_at(functions.col("trace_and_values"), 2), "\\|"))
-                .withColumn("valueA", functions.element_at(functions.col("values"), 1))
-                .withColumn("valueB", functions.element_at(functions.col("values"), 2));
+                // explode each occurrence entry
+                .withColumn("occurrence", functions.explode(col("occurrences")))
 
-        // Detect whether valueA/valueB are integers
-        Dataset<Row> parsedDF = explodedDF
-                .withColumn("is_position", col("valueA").rlike("^[0-9]+$").and(col("valueB").rlike("^[0-9]+$")))
-                .withColumn("positionA", when(col("is_position"), col("valueA").cast(DataTypes.IntegerType)))
-                .withColumn("positionB", when(col("is_position"), col("valueB").cast(DataTypes.IntegerType)))
-                .withColumn("timestampA", when(not(col("is_position")), col("valueA").cast(DataTypes.StringType)))
-                .withColumn("timestampB", when(not(col("is_position")), col("valueB").cast(DataTypes.StringType)))
+                // split into trace_id and values string
+                .withColumn("parts", split(col("occurrence"), "\\|\\|"))
+                .withColumn("trace_id", trim(element_at(col("parts"), 1)))
+                .withColumn("values_raw", trim(element_at(col("parts"), 2)))
+
+                // split raw values into individual pairs (valueA|valueB)
+                .withColumn("pair", explode(split(col("values_raw"), ",")))
+
+                // split each pair into valueA and valueB
+                .withColumn("values", split(col("pair"), "\\|"))
+                .withColumn("valueA", trim(element_at(col("values"), 1)))
+                .withColumn("valueB", trim(element_at(col("values"), 2)))
+
                 .withColumnRenamed("event_a", "eventA")
                 .withColumnRenamed("event_b", "eventB")
-                .select("trace_id", "eventA", "eventB", "timestampA", "timestampB", "positionA", "positionB");
+                ;
 
-        return parsedDF.as(Encoders.bean(IndexPair.class));
+//        explodedDF.filter(functions.not(functions.col("valueB").rlike("^[+-]?[0-9]+$"))).show(false);
+
+        if (positions) {
+            explodedDF = explodedDF
+                    .withColumn("positionA", col("valueA").cast(DataTypes.IntegerType))
+                    .withColumn("positionB", col("valueB").cast(DataTypes.IntegerType))
+                    .withColumn("timestampA", functions.lit(null))
+                    .withColumn("timestampB", functions.lit(null))
+//                    .filter("positionA >= 0 AND positionB >= 0")
+                    .select("trace_id", "eventA", "eventB", "timestampA", "timestampB", "positionA", "positionB");
+//        explodedDF.filter(col("positionB").isNull()).show(false);
+
+        } else {
+            explodedDF = explodedDF
+                    .withColumn("timestampA", col("valueA"))
+                    .withColumn("timestampB", col("valueB"))
+                    .withColumn("positionA", functions.lit(-1))
+                    .withColumn("positionB", functions.lit(-1))
+//                    .filter("timestampA IS NOT NULL AND timestampB IS NOT NULL")
+                    .select("trace_id", "eventA", "eventB", "timestampA", "timestampB", "positionA", "positionB");
+        }
+
+        return explodedDF.as(Encoders.bean(IndexPair.class));
     }
 
     //Below are for declare//

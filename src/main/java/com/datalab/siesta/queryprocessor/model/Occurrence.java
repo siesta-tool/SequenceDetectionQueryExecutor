@@ -41,15 +41,9 @@ public class Occurrence {
         if(fEvent.getTimestamp()==null){ // we are handling positions
             notOverlaps = this.occurrence.get(size-1).getPosition()<fEvent.getPosition() ||
                     this.occurrence.get(0).getPosition()>lEvent.getPosition();
-        } else if (fEvent.getPosition()==-1) { // we are handling timestamps
+        }else{
             notOverlaps = this.occurrence.get(size-1).getTimestamp().before(fEvent.getTimestamp()) ||
                     this.occurrence.get(0).getTimestamp().after(lEvent.getTimestamp());
-        }
-        else{
-            notOverlaps = (this.occurrence.get(size-1).getTimestamp().before(fEvent.getTimestamp()) ||
-                    this.occurrence.get(0).getTimestamp().after(lEvent.getTimestamp())) &&
-                    (this.occurrence.get(size-1).getPosition()<fEvent.getPosition() ||
-                            this.occurrence.get(0).getPosition()>lEvent.getPosition());
         }
         return !notOverlaps;
     }
