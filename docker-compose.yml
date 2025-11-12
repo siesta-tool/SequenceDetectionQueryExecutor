@@ -36,7 +36,7 @@ services:
       delta: "false" # True for streaming, False for batching
       spring.mvc.pathmatch.matching-strategy: ANT_PATH_MATCHER
       # S3 (minio)
-      s3.endpoint: http://155.207.131.53:9000
+      s3.endpoint: http://<MINIO-IP>:9000
       s3.user: minioadmin
       s3.key: minioadmin
       s3.timeout: 600000
