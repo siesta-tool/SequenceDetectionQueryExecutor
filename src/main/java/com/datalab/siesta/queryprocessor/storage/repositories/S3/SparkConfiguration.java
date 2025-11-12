@@ -34,8 +34,14 @@ public class SparkConfiguration {
     @Value("${s3.timeout:600000}")
     private String s3timeout;
 
-    @Value("${s3.endpoint:http://127.0.0.1:9000}")
+    @Value("${s3.endpoint:http://localhost:9000}")
     private String s3endpoint;
+
+    @Value("${spark.driver.host:localhost}")
+    private String sparkDriverHost;
+
+    @Value("${spark.driver.port:42315}")
+    private String sparkDriverPort;
 
     @Bean
     public SparkConf sparkConf() {
@@ -50,6 +56,8 @@ public class SparkConfiguration {
                 .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
                 .set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
                 .set("spark.sql.streaming.statefulOperator.checkCorrectness.enabled", "false")
+//                .set("spark.driver.host", sparkDriverHost)
+//                .set("spark.driver.port", sparkDriverPort)
                 // Use local paths - Spark will automatically distribute these JARs to workers
 //                .set("spark.jars", jarDir + "/hadoop-aws-3.3.4.jar,"
 //                        + jarDir + "/aws-java-sdk-bundle-1.12.262.jar,"
@@ -58,7 +66,7 @@ public class SparkConfiguration {
 //                        + jarDir + "/delta-storage-3.3.0.jar")
 //                .set("spark.driver.maxResultSize", "5g")
                 // Ensure JARs are distributed to executors
-                .set("spark.submit.deployMode", "client");
+                .set("spark.submit.deployMode", "cluster");
     }
 
     @Bean

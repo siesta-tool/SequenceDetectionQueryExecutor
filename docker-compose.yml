@@ -6,8 +6,25 @@ networks:
   cluster-net:
     name: cluster-net
     driver: bridge
+volumes:
+    minio_storage: {}
 
 services:
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_storage:/data
+    networks:
+      - siesta-net
+
   query:
     build: .
     container_name: query
@@ -18,26 +35,30 @@ services:
       database: s3 # cassandra or s3
       delta: "false" # True for streaming, False for batching
       spring.mvc.pathmatch.matching-strategy: ANT_PATH_MATCHER
-      #for s3 (minio)
+      # S3 (minio)
       s3.endpoint: http://155.207.131.53:9000
       s3.user: minioadmin
       s3.key: minioadmin
       s3.timeout: 600000
-      # Scylla/Cassandra configuration
+      # Scylla/Cassandra
       cassandra.contact.points: scylla
       cassandra.port: 9042
       cassandra.keyspace: siesta
+      # Spark driver -always point on a worker node
+#      spark.driver.host: spark-worker-1
+#      spark.driver.port: 42315
     volumes:
       - ./build:/root/.m2
     ports:
-      - '8090:8090'
+      - '8090:8090'   # Application port
+#      - '42315:42315' # Spark driver port
     networks:
       - siesta-net
       - cluster-net
-#    depends_on:
-#      - spark-master
-#      - spark-worker-1
-#      - spark-worker-2
+    depends_on:
+      - spark-master
+      - spark-worker-1
+      - spark-worker-2
 
   spark-master:
     build:
@@ -83,4 +104,3 @@ services:
       - spark-master
     networks:
       - cluster-net
-
