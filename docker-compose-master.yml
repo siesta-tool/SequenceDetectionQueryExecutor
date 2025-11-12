@@ -1,0 +1,68 @@
+version: '3.8'
+
+# This file should be deployed on the MASTER machine
+# It runs the Spark master and your query application
+
+networks:
+  siesta-net:
+    name: siesta-net
+    external: true
+  cluster-net:
+    name: cluster-net
+    driver: bridge
+
+services:
+  query:
+    build: .
+    container_name: query
+    stdin_open: true
+    environment:
+      # Application
+      server.port: 8090 # port of the application
+      database: s3 # cassandra or s3
+      delta: "false" # True for streaming, False for batching
+      spring.mvc.pathmatch.matching-strategy: ANT_PATH_MATCHER
+      # S3 (minio)
+      s3.endpoint: http://<MINIO-IP>:9000
+      s3.user: minioadmin
+      s3.key: minioadmin
+      s3.timeout: 600000
+      # Scylla/Cassandra
+      cassandra.contact.points: scylla
+      cassandra.port: 9042
+      cassandra.keyspace: siesta
+      # Spark driver -always point on a worker node
+      master.uri: spark://spark-master:7077  # Connect to Spark cluster instead of local
+    #      spark.driver.host: spark-worker-1
+    #      spark.driver.port: 42315
+    volumes:
+      - ./build:/root/.m2
+    ports:
+      - '8090:8090'   # Application port
+    #      - '42315:42315' # Spark driver port
+    networks:
+      - siesta-net
+      - cluster-net
+    depends_on:
+      - spark-master
+      - spark-worker-1
+      - spark-worker-2
+
+  spark-master:
+    build:
+      context: .
+      dockerfile: spark-base.Dockerfile
+    image: spark-base:3.5.4
+    container_name: spark-master
+    hostname: spark-master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_MASTER_PORT=7077
+      - SPARK_MASTER_WEBUI_PORT=8080
+    ports:
+      - "7077:7077"
+      - "8080:8080"
+    networks:
+      - cluster-net
+      - siesta-net

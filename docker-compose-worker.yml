@@ -1,0 +1,16 @@
+version: '3.7'
+
+services:
+  spark-worker:
+    container_name: spark-worker-<WORKER_ID>
+    hostname: spark-worker-<WORKER_ID>
+    build:
+      context: .
+      dockerfile: spark-base.Dockerfile
+    image: spark-base:3.5.4
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://<MASTER-IP>:7077
+      - SPARK_WORKER_MEMORY=4G
+      - SPARK_WORKER_CORES=4
+    restart: unless-stopped
