@@ -5,13 +5,10 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.SparkSession;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
-
-import java.io.File;
 
 /**
  * Contains the configuration of spark in he.maven.plugins:maven-compiler-plugin:3.13.0:compile (default-compile) on project siesta-query-processor: Fatal error compiling: error: release version 17 not supported -> [Help 1]
@@ -42,7 +39,8 @@ public class SparkConfiguration {
 
     @Bean
     public SparkConf sparkConf() {
-        String jarPath = new File("src/main/resources/jars").getAbsolutePath();
+        // Get the directory where JARs are located
+        String jarDir = "/code/src/main/resources/jars";
 
         return new SparkConf()
                 .setAppName(appName)
@@ -52,12 +50,15 @@ public class SparkConfiguration {
                 .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
                 .set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
                 .set("spark.sql.streaming.statefulOperator.checkCorrectness.enabled", "false")
-                .set("spark.jars", jarPath + "/hadoop-aws-3.3.4.jar,"
-                        + jarPath + "/aws-java-sdk-bundle-1.12.262.jar,"
-                        + jarPath + "/hadoop-client-3.3.4.jar,"
-                        + jarPath + "/delta-spark_2.12-3.3.0.jar,"
-                        + jarPath + "/delta-storage-3.3.0.jar")
-                .set("spark.driver.maxResultSize", "5g");
+                // Use local paths - Spark will automatically distribute these JARs to workers
+//                .set("spark.jars", jarDir + "/hadoop-aws-3.3.4.jar,"
+//                        + jarDir + "/aws-java-sdk-bundle-1.12.262.jar,"
+//                        + jarDir + "/hadoop-client-3.3.4.jar,"
+//                        + jarDir + "/delta-spark_2.12-3.3.0.jar,"
+//                        + jarDir + "/delta-storage-3.3.0.jar")
+//                .set("spark.driver.maxResultSize", "5g")
+                // Ensure JARs are distributed to executors
+                .set("spark.submit.deployMode", "client");
     }
 
     @Bean

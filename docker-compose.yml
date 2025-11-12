@@ -3,6 +3,9 @@ networks:
   siesta-net:
     name: siesta-net
     external: true
+  cluster-net:
+    name: cluster-net
+    driver: bridge
 
 services:
   query:
@@ -10,13 +13,13 @@ services:
     container_name: query
     stdin_open: true
     environment:
-      master.uri: local[*]
+      master.uri: spark://spark-master:7077  # Connect to Spark cluster instead of local
       server.port: 8090 # port of the application
-      database: cassandra # cassandra or s3
-      delta: false # True for streaming, False for batching
+      database: s3 # cassandra or s3
+      delta: "false" # True for streaming, False for batching
       spring.mvc.pathmatch.matching-strategy: ANT_PATH_MATCHER
       #for s3 (minio)
-      s3.endpoint: http://minio:9000
+      s3.endpoint: http://155.207.131.53:9000
       s3.user: minioadmin
       s3.key: minioadmin
       s3.timeout: 600000
@@ -30,45 +33,54 @@ services:
       - '8090:8090'
     networks:
       - siesta-net
+      - cluster-net
+#    depends_on:
+#      - spark-master
+#      - spark-worker-1
+#      - spark-worker-2
 
-#  spark-master:
-#    image: bitnami/spark:3.5.4
-#    container_name: spark-master
-#    environment:
-#      - SPARK_MODE=master
-#      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-#      - SPARK_RPC_ENCRYPTION_ENABLED=no
-#      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-#      - SPARK_SSL_ENABLED=no
-#    ports:
-#      - "7077:7077" # Spark master port
-#      - "8080:8080" # Spark Web UI
-#    networks:
-#      - cluster_net
-#
-#  spark-worker-1:
-#    image: bitnami/spark:3.5.4
-#    container_name: spark-worker-1
-#    environment:
-#      - SPARK_MODE=worker
-#      - SPARK_MASTER_URL=spark://spark-master:7077
-#      - SPARK_WORKER_MEMORY=1G
-#      - SPARK_WORKER_CORES=1
-#    depends_on:
-#      - spark-master
-#    networks:
-#      - cluster_net
-#
-#  spark-worker-2:
-#    image: bitnami/spark:3.5.4
-#    container_name: spark-worker-2
-#    environment:
-#      - SPARK_MODE=worker
-#      - SPARK_MASTER_URL=spark://spark-master:7077
-#      - SPARK_WORKER_MEMORY=1G
-#      - SPARK_WORKER_CORES=1
-#    depends_on:
-#      - spark-master
-#    networks:
-#      - cluster_net
+  spark-master:
+    build:
+      context: .
+      dockerfile: spark-base.Dockerfile
+    image: spark-base:3.5.4
+    container_name: spark-master
+    hostname: spark-master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_MASTER_PORT=7077
+      - SPARK_MASTER_WEBUI_PORT=8080
+    ports:
+      - "7077:7077"
+      - "8080:8080"
+    networks:
+      - cluster-net
+      - siesta-net
+
+  spark-worker-1:
+    image: spark-base:3.5.4
+    container_name: spark-worker-1
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2
+    depends_on:
+      - spark-master
+    networks:
+      - cluster-net
+
+  spark-worker-2:
+    image: spark-base:3.5.4
+    container_name: spark-worker-2
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2
+    depends_on:
+      - spark-master
+    networks:
+      - cluster-net
 

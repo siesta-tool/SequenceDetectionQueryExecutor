@@ -223,11 +223,11 @@
             </exclusions>
         </dependency>
 
-<!--        <dependency>-->
-<!--            <groupId>io.delta</groupId>-->
-<!--            <artifactId>delta-core_2.12</artifactId>-->
-<!--            <version>2.1.0</version>-->
-<!--        </dependency>-->
+        <dependency>
+            <groupId>io.delta</groupId>
+            <artifactId>delta-core_2.12</artifactId>
+            <version>2.1.0</version>
+        </dependency>
 
         <!-- ScyllaDB/Cassandra dependencies -->
         <dependency>
@@ -240,6 +240,12 @@
             <groupId>com.datastax.oss</groupId>
             <artifactId>java-driver-core</artifactId>
             <version>4.17.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-bundle</artifactId>
+            <version>1.12.262</version>
         </dependency>
 
         <dependency>
