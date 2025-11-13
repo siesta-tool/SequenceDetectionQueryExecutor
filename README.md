@@ -123,6 +123,40 @@ Query Processor is running on localhost:8090
     }
 }
 ```
+```
+  {
+    "log_name": "another_test",
+    "pattern": {
+        "eventsWithSymbols": [
+            {
+                "name": "a",
+                "position": 0,
+                "symbol": "+"
+            },
+            {
+                "name": "b",
+                "position": 1,
+                "symbol": "*"
+            }
+        ],
+        "constraints": [
+            {
+                "posA": 0,
+                "posB": 1,
+                "type": "within",
+                "constraint_type": "timeConstraint",
+                "constraint": 10,
+                "granularity": "minutes"
+            }
+        ]
+    },
+    "returnAll": false,
+    "hasGroups": false,
+    "groups-config": null,
+    "whyNotMatchFlag": false,
+    "wnm-config": null
+  }
+```
 * POST /explore (Returns the most probable continuation of the query pattern). The different **modes**
   of operation are:
   * Fast
