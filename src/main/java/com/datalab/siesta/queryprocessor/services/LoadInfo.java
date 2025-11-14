@@ -34,6 +34,9 @@ public class LoadInfo {
         Map<String, Metadata> m = new HashMap<>();
         for (String l : dbConnector.findAllLongNames()) {
             Metadata metadata = dbConnector.getMetadata(l);
+            if(metadata == null) { //might be an incomplete logdatabase
+                continue;
+            }
             // TODO: determine a way to find the starting ts
             if(metadata.getStart_ts()==null){
                 metadata.setStart_ts("");

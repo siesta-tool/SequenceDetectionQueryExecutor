@@ -17,5 +17,5 @@ import java.io.Serializable;
 @NoArgsConstructor
 public class OccurrencesPerTrace implements Serializable {
     private String traceId;
-    private int occurrences;
+    private int occs;
 }

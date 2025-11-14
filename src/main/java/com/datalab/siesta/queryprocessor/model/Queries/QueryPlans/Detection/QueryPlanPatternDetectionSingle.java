@@ -17,6 +17,7 @@ import org.springframework.web.context.annotation.RequestScope;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * The query plan responsible for detecting patterns of a single event (i.e. patterns that contain 2 characters
@@ -42,7 +43,8 @@ public class QueryPlanPatternDetectionSingle extends QueryPlanPatternDetection {
         long ts_trace = System.currentTimeMillis();
         if (!firstCheck.isEmpty()) return firstCheck; //stop the process as an error was found
         QueryResponsePatternDetection queryResponsePatternDetection = new QueryResponsePatternDetection();
-        List<Occurrences> occurrences = saseConnector.evaluateSmallPatterns(qpdw.getPattern(), intermediateResults);
+        List<Occurrences> occurrences = saseConnector.evaluateSmallPatterns(qpdw.getPattern(), intermediateResults)
+                        .stream().filter(o->o.getOccurrences().size() > 1).collect(Collectors.toList());
         occurrences.forEach(x -> x.clearOccurrences(qpdw.isReturnAll()));
         long ts_eval = System.currentTimeMillis();
         queryResponsePatternDetection.setOccurrences(occurrences);

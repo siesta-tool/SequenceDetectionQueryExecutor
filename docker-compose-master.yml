@@ -1,4 +1,8 @@
 version: '3.8'
+
+# This file should be deployed on the MASTER machine
+# It runs the Spark master and your query application
+
 networks:
   siesta-net:
     name: siesta-net
@@ -6,31 +10,14 @@ networks:
   cluster-net:
     name: cluster-net
     driver: bridge
-volumes:
-    minio_storage: {}
 
 services:
-  minio:
-    image: minio/minio:latest
-    container_name: minio
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio_storage:/data
-    networks:
-      - siesta-net
-
   query:
     build: .
     container_name: query
     stdin_open: true
     environment:
-      master.uri: spark://spark-master:7077  # Connect to Spark cluster instead of local
+      # Application
       server.port: 8090 # port of the application
       database: s3 # cassandra or s3
       delta: "false" # True for streaming, False for batching
@@ -45,13 +32,14 @@ services:
       cassandra.port: 9042
       cassandra.keyspace: siesta
       # Spark driver -always point on a worker node
-#      spark.driver.host: spark-worker-1
-#      spark.driver.port: 42315
+      master.uri: spark://spark-master:7077  # Connect to Spark cluster instead of local
+    #      spark.driver.host: spark-worker-1
+    #      spark.driver.port: 42315
     volumes:
       - ./build:/root/.m2
     ports:
       - '8090:8090'   # Application port
-#      - '42315:42315' # Spark driver port
+    #      - '42315:42315' # Spark driver port
     networks:
       - siesta-net
       - cluster-net
@@ -69,40 +57,12 @@ services:
     hostname: spark-master
     environment:
       - SPARK_MODE=master
-      - SPARK_MASTER_HOST=0.0.0.0
+      - SPARK_MASTER_HOST=spark-master
       - SPARK_MASTER_PORT=7077
       - SPARK_MASTER_WEBUI_PORT=8080
-      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-      - SPARK_RPC_ENCRYPTION_ENABLED=no
     ports:
       - "7077:7077"
       - "8080:8080"
     networks:
       - cluster-net
       - siesta-net
-
-  spark-worker-1:
-    image: spark-base:3.5.4
-    container_name: spark-worker-1
-    environment:
-      - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_MEMORY=2G
-      - SPARK_WORKER_CORES=2
-    depends_on:
-      - spark-master
-    networks:
-      - cluster-net
-
-  spark-worker-2:
-    image: spark-base:3.5.4
-    container_name: spark-worker-2
-    environment:
-      - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_MEMORY=2G
-      - SPARK_WORKER_CORES=2
-    depends_on:
-      - spark-master
-    networks:
-      - cluster-net

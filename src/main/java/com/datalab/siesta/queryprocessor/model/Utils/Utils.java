@@ -3,6 +3,7 @@ package com.datalab.siesta.queryprocessor.model.Utils;
 import com.datalab.siesta.queryprocessor.SaseConnection.SaseEvent;
 import com.datalab.siesta.queryprocessor.model.Constraints.*;
 import com.datalab.siesta.queryprocessor.model.Events.Event;
+import com.datalab.siesta.queryprocessor.model.Events.EventBoth;
 import com.datalab.siesta.queryprocessor.model.Events.EventPos;
 import com.datalab.siesta.queryprocessor.model.Events.EventTs;
 import org.apache.spark.broadcast.Broadcast;
@@ -48,7 +49,12 @@ public class Utils implements Serializable {
     public List<SaseEvent> transformToSaseEvents(List<Event> events){
         List<SaseEvent> ses = new ArrayList<>();
         Event fe = events.get(0);
-        if(fe instanceof EventTs){ // handling events ts
+        if(fe instanceof EventBoth){
+            for(int i=0;i<events.size();i++){
+                ses.add(events.get(i).transformSaseEvent(i));
+            }
+        }
+        else if(fe instanceof EventTs){ // handling events ts
             long minTs = ((EventTs) fe).getTimestamp().getTime();
             SaseEvent se = new SaseEvent(fe.getTraceID(),0,fe.getName(),0,true);
             se.setMinTs(minTs);

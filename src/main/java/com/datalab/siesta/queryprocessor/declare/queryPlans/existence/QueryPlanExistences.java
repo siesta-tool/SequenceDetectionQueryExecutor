@@ -5,18 +5,15 @@ import com.datalab.siesta.queryprocessor.declare.DeclareUtilities;
 import com.datalab.siesta.queryprocessor.declare.model.*;
 import com.datalab.siesta.queryprocessor.declare.queryResponses.QueryResponseExistence;
 import com.datalab.siesta.queryprocessor.declare.queryWrappers.QueryExistenceWrapper;
+import com.datalab.siesta.queryprocessor.model.DBModel.EventTypes;
 import com.datalab.siesta.queryprocessor.model.DBModel.Metadata;
-import com.datalab.siesta.queryprocessor.model.Events.Event;
-import com.datalab.siesta.queryprocessor.model.Events.EventPair;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.QueryPlan;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponse;
 import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryWrapper;
 
 import lombok.Setter;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.FlatMapFunction;
-import org.apache.spark.broadcast.Broadcast;
+import org.apache.spark.sql.*;
 import org.apache.spark.storage.StorageLevel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -28,10 +25,11 @@ import java.util.stream.Collectors;
 
 @Component
 @RequestScope
-public class QueryPlanExistences implements QueryPlan{
+public class QueryPlanExistences implements QueryPlan {
 
     private final DeclareDBConnector declareDBConnector;
     private final JavaSparkContext javaSparkContext;
+    private final SparkSession sparkSession;
     //initialize a protected variable of the required events
     private QueryResponseExistence queryResponseExistence;
     @Setter
@@ -42,32 +40,35 @@ public class QueryPlanExistences implements QueryPlan{
 
     @Autowired
     public QueryPlanExistences(DeclareDBConnector declareDBConnector, JavaSparkContext javaSparkContext,
-                               DeclareUtilities declareUtilities) {
+                               DeclareUtilities declareUtilities, SparkSession sparkSession) {
         this.declareDBConnector = declareDBConnector;
         this.javaSparkContext = javaSparkContext;
         this.queryResponseExistence = new QueryResponseExistence();
         this.declareUtilities = declareUtilities;
+        this.sparkSession = sparkSession;
     }
 
     @Override
     public QueryResponse execute(QueryWrapper qw) {
         QueryExistenceWrapper qew = (QueryExistenceWrapper) qw;
-        Broadcast<Double> bSupport = javaSparkContext.broadcast(qew.getSupport());
-        Broadcast<Long> bTotalTraces = javaSparkContext.broadcast(metadata.getTraces());
-
         //if existence, absence or exactly in modes
-        JavaRDD<UniqueTracesPerEventType> uEventType = declareDBConnector.querySingleTableDeclare(metadata.getLogname());
+        Dataset<UniqueTracesPerEventType> uEventType = declareDBConnector.querySingleTableDeclare(metadata.getLogname());
         uEventType.persist(StorageLevel.MEMORY_AND_DISK());
         Map<String, HashMap<Integer, Long>> groupTimes = this.createMapForSingle(uEventType);
+        //Make it available to the spark context
         Map<String, Long> singleUnique = this.extractUniqueTracesSingle(groupTimes);
-        Broadcast<Map<String, Long>> bUniqueSingle = javaSparkContext.broadcast(singleUnique);
+        List<EventTypeOccurrences> uniqueSingleRows = singleUnique.entrySet().stream()
+                .map(entry -> new EventTypeOccurrences(entry.getKey(), entry.getValue()))
+                .toList();
+        Dataset<EventTypeOccurrences> uniqueSingleDf = sparkSession.createDataset(uniqueSingleRows,
+                Encoders.bean(EventTypeOccurrences.class));
 
-        JavaRDD<UniqueTracesPerEventPair> uPairs = declareDBConnector.queryIndexTableDeclare(metadata.getLogname());
+        Dataset<UniqueTracesPerEventPair> uPairs = declareDBConnector.queryIndexTableDeclare(metadata.getLogname());
         uPairs.persist(StorageLevel.MEMORY_AND_DISK());
-        JavaRDD<EventPairToNumberOfTrace> joined = joinUnionTraces(uPairs);
+        Dataset<EventPairToNumberOfTrace> joined = joinUnionTraces(uPairs);
         joined.persist(StorageLevel.MEMORY_AND_DISK());
 
-        Set<EventPair> notFoundPairs = declareUtilities.extractNotFoundPairs(groupTimes.keySet(),joined);
+        Set<EventTypes> notFoundPairs = declareUtilities.extractNotFoundPairs(groupTimes.keySet(), joined);
 
         for (String m : qew.getModes()) {
             switch (m) {
@@ -81,19 +82,19 @@ public class QueryPlanExistences implements QueryPlan{
                     exactly(groupTimes, qew.getSupport(), metadata.getTraces());
                     break;
                 case "co-existence":
-                    coExistence(joined, bUniqueSingle, bSupport, bTotalTraces,notFoundPairs);
+                    coExistence(joined, uniqueSingleDf, qew.getSupport(), metadata.getTraces());
                     break;
                 case "not-co-existence":
-                    notCoExistence(joined, bUniqueSingle, bSupport, bTotalTraces,notFoundPairs);
+                    notCoExistence(joined, uniqueSingleDf, qew.getSupport(), metadata.getTraces(), notFoundPairs);
                     break;
                 case "choice":
-                    choice(uEventType, bSupport, bTotalTraces);
+                    choice(uEventType, qew.getSupport(), metadata.getTraces());
                     break;
                 case "exclusive-choice":
-                    exclusiveChoice(joined, bUniqueSingle, bSupport, bTotalTraces,notFoundPairs);
+                    exclusiveChoice(joined, uniqueSingleDf, singleUnique, qew.getSupport(), metadata.getTraces(), notFoundPairs);
                     break;
                 case "responded-existence":
-                    respondedExistence(joined, bUniqueSingle, bSupport, bTotalTraces);
+                    respondedExistence(joined, uniqueSingleDf,qew.getSupport(), metadata.getTraces());
                     break;
             }
 
@@ -107,19 +108,26 @@ public class QueryPlanExistences implements QueryPlan{
     }
 
     public QueryResponseExistence runAll(Map<String, HashMap<Integer, Long>> groupTimes, double support,
-                                         JavaRDD<EventPairToNumberOfTrace> joined, Broadcast<Double> bSupport,
-                                         Broadcast<Long> bTotalTraces, Broadcast<Map<String, Long>> bUniqueSingle,
-                                         JavaRDD<UniqueTracesPerEventType> uEventType) {
-        Set<EventPair> notFoundPairs = declareUtilities.extractNotFoundPairs(groupTimes.keySet(),joined);
+                                         Dataset<EventPairToNumberOfTrace> joined,
+                                         long totalTraces, Map<String, Long> uniqueSingle,
+                                         Dataset<UniqueTracesPerEventType> uEventType) {
+        Set<EventTypes> notFoundPairs = declareUtilities.extractNotFoundPairs(groupTimes.keySet(),joined);
+
+        //Make it available to the spark context
+        List<EventTypeOccurrences> uniqueSingleRows = uniqueSingle.entrySet().stream()
+                .map(entry -> new EventTypeOccurrences(entry.getKey(), entry.getValue()))
+                .toList();
+        Dataset<EventTypeOccurrences> uniqueSingleDf = sparkSession.createDataset(uniqueSingleRows,
+                Encoders.bean(EventTypeOccurrences.class));
 
         //all event pairs will contain only those that weren't found in the dataset
         existence(groupTimes, support, metadata.getTraces());
         absence(groupTimes, support, metadata.getTraces());
         exactly(groupTimes, support, metadata.getTraces());
-        coExistence(joined, bUniqueSingle, bSupport, bTotalTraces,notFoundPairs);
-        choice(uEventType, bSupport, bTotalTraces);
-        exclusiveChoice(joined, bUniqueSingle, bSupport, bTotalTraces,notFoundPairs);
-        respondedExistence(joined, bUniqueSingle, bSupport, bTotalTraces);
+        coExistence(joined, uniqueSingleDf, support, totalTraces);
+        choice(uEventType, support, totalTraces);
+        exclusiveChoice(joined, uniqueSingleDf,uniqueSingle, support, totalTraces,notFoundPairs);
+        respondedExistence(joined, uniqueSingleDf, support, totalTraces);
         return this.queryResponseExistence;
     }
 
@@ -128,24 +136,29 @@ public class QueryPlanExistences implements QueryPlan{
      * (Event Type) -> (number of occurrences) -> # of traces that contain that much amount of occurrences of this
      * event type. e.g. searching how many traces have exactly 2 instances of the event type 'c'
      * ('c')->(2) -> response
+     *
      * @param uEventType an RDD containing for each event type the unique traces and their corresponding occurrences
      *                   of this event type
      * @return a map of the form (Event Type) -> (number of occurrences) -> # of traces that contain that
      * much amount of occurrences of this event type.
      */
-    public Map<String, HashMap<Integer, Long>> createMapForSingle(JavaRDD<UniqueTracesPerEventType> uEventType) {
-        return uEventType
-                .map(x -> new Tuple2<>(x.getEventType(), x.groupTimes()))
-                .keyBy(x -> x._1)
-                .mapValues(x -> x._2)
-                .collectAsMap();
+    public Map<String, HashMap<Integer, Long>> createMapForSingle(Dataset<UniqueTracesPerEventType> uEventType) {
+        List<UniqueTracesPerEventType> uEventTypeList = uEventType.collectAsList();
+        Map<String, HashMap<Integer, Long>> response = uEventTypeList.parallelStream().collect(Collectors.toMap(
+                UniqueTracesPerEventType::getEventName, // Key: eventType (String)
+                UniqueTracesPerEventType::groupTimes,   // Value: groupTimes() -> HashMap<Integer, Long>
+                // Resolves key conflicts (shouldn't happen)
+                (existing, replacement) -> existing
+        ));
+        return response;
     }
 
     /**
      * Based on the output of the above function, this code extracts the number of traces that contain a particular
      * event type, i.e. the response will contain information (event type) -> #traces containing it
+     *
      * @param groupTimes a map of the form (Event Type) -> (number of occurrences) -> # of traces that contain that
-     *      * much amount of occurrences of this event type.
+     *                   * much amount of occurrences of this event type.
      * @return a map in the form (event type) -> #traces containing it
      */
     public Map<String, Long> extractUniqueTracesSingle(Map<String, HashMap<Integer, Long>> groupTimes) {
@@ -161,28 +174,44 @@ public class QueryPlanExistences implements QueryPlan{
      * @param uPairs information extracted from the index table
      * @return a rdd of the type (eventA, eventB, traceId), i.e., which traces contain a specific event pair
      */
-    public JavaRDD<EventPairToNumberOfTrace> joinUnionTraces(JavaRDD<UniqueTracesPerEventPair> uPairs) {
+    public Dataset<EventPairToNumberOfTrace> joinUnionTraces(Dataset<UniqueTracesPerEventPair> uPairs) {
 
-        return uPairs
-                .keyBy(UniqueTracesPerEventPair::getKey)
-                .leftOuterJoin(uPairs.keyBy(UniqueTracesPerEventPair::getKeyReverse))
-                .map(x -> {
-                    UniqueTracesPerEventPair right = x._2._2.
-                            orElse(new UniqueTracesPerEventPair(x._1._2, x._1._1, new ArrayList<>()));
-                    // find union of the 2 lists
-                    Set<String> set = new LinkedHashSet<>(x._2._1.getUniqueTraces());
-                    set.addAll(right.getUniqueTraces());
-                    ArrayList<String> combinedList = new ArrayList<>(set);
-                    return new EventPairToNumberOfTrace(x._1._1, x._1._2, combinedList.size());
-                });
+        // Create reversed key dataset (eventB, eventA)
+        Dataset<Row> reversedPairs = uPairs
+                .withColumnRenamed("eventA", "eventB-2") // Swap column names
+                .withColumnRenamed("eventB", "eventA-2")
+                .withColumnRenamed("uniqueTraces", "reversedUniqueTraces");
+
+        // Perform Left Outer Join on (eventA, eventB) with (eventB, eventA)
+        Dataset<Row> joinedPairs = uPairs
+                .join(reversedPairs,
+                        functions.col("eventA").equalTo(functions.col("eventA-2"))
+                                .and(functions.col("eventB").equalTo(functions.col("eventB-2"))),
+                        "left_outer")
+                .select(functions.col("eventA"),
+                        functions.col("eventB"),
+                        functions.col("uniqueTraces"),
+                        functions.col("reversedUniqueTraces"));
+
+        Dataset<EventPairToNumberOfTrace> result = joinedPairs
+                .withColumn("mergedTraces", functions.expr(
+                        "array_union(uniqueTraces, reversedUniqueTraces)"
+                ))
+                .withColumn("numberOfTraces", functions.size(functions.col("mergedTraces")))
+                .selectExpr("eventA", "eventB", "numberOfTraces")
+                .as(Encoders.bean(EventPairToNumberOfTrace.class));
+
+        return result;
 
     }
 
+
     /**
      * Extract the constraints that correspond to the 'existence' template.
-     * @param groupTimes a map of the form (Event Type) -> (number of occurrences) -> # of traces that contain that
-     *      * much amount of occurrences of this event type.
-     * @param support minimum support that a pattern should have in order to be included in the result set
+     *
+     * @param groupTimes  a map of the form (Event Type) -> (number of occurrences) -> # of traces that contain that
+     *                    * much amount of occurrences of this event type.
+     * @param support     minimum support that a pattern should have in order to be included in the result set
      * @param totalTraces the total number of traces in this log database
      */
     private void existence(Map<String, HashMap<Integer, Long>> groupTimes, double support, long totalTraces) {
@@ -192,7 +221,7 @@ public class QueryPlanExistences implements QueryPlan{
             HashMap<Integer, Long> t = groupTimes.get(et);
             List<Integer> times = new ArrayList<>(t.keySet()).stream().sorted(Comparator.reverseOrder())
                     .collect(Collectors.toList());
-            for (int time=3;time>0;time--) {
+            for (int time = 3; time > 0; time--) {
                 int finalTime = time;
                 double s = (double) times.stream().filter(x -> x >= finalTime).mapToLong(t::get).sum() / totalTraces;
                 if (s >= support) {
@@ -205,9 +234,10 @@ public class QueryPlanExistences implements QueryPlan{
 
     /**
      * Extract the constraints that correspond to the 'absence' template.
-     * @param groupTimes a map of the form (Event Type) -> (number of occurrences) -> # of traces that contain that
-     *      * much amount of occurrences of this event type.
-     * @param support minimum support that a pattern should have in order to be included in the result set
+     *
+     * @param groupTimes  a map of the form (Event Type) -> (number of occurrences) -> # of traces that contain that
+     *                    * much amount of occurrences of this event type.
+     * @param support     minimum support that a pattern should have in order to be included in the result set
      * @param totalTraces the total number of traces in this log database
      */
     private void absence(Map<String, HashMap<Integer, Long>> groupTimes, double support, long totalTraces) {
@@ -219,7 +249,7 @@ public class QueryPlanExistences implements QueryPlan{
             t.put(0, totalTraces - totalSum);
             List<Integer> times = new ArrayList<>(t.keySet()).stream().sorted().collect(Collectors.toList());
             if (!times.contains(2)) times.add(2); //to be sure that it will run at least once
-            for (int time=3;time>=2;time--) {
+            for (int time = 3; time >= 2; time--) {
                 int finalTime = time;
                 double s = (double) times.stream().filter(x -> x < finalTime).map(t::get)
                         .filter(Objects::nonNull).mapToLong(x -> x).sum() / totalTraces;
@@ -233,9 +263,10 @@ public class QueryPlanExistences implements QueryPlan{
 
     /**
      * Extract the constraints that correspond to the 'exactly' template.
-     * @param groupTimes a map of the form (Event Type) -> (number of occurrences) -> # of traces that contain that
-     *      * much amount of occurrences of this event type.
-     * @param support minimum support that a pattern should have in order to be included in the result set
+     *
+     * @param groupTimes  a map of the form (Event Type) -> (number of occurrences) -> # of traces that contain that
+     *                    * much amount of occurrences of this event type.
+     * @param support     minimum support that a pattern should have in order to be included in the result set
      * @param totalTraces the total number of traces in this log database
      */
     private void exactly(Map<String, HashMap<Integer, Long>> groupTimes, double support, long totalTraces) {
@@ -246,7 +277,7 @@ public class QueryPlanExistences implements QueryPlan{
             long totalSum = t.values().stream().mapToLong(x -> x).sum();
             if (!t.containsKey(0)) t.put(0, totalTraces - totalSum);
             for (Map.Entry<Integer, Long> x : t.entrySet()) {
-                if (x.getValue() >= (support * totalTraces) && x.getKey()>0) {
+                if (x.getValue() >= (support * totalTraces) && x.getKey() > 0) {
                     response.add(new EventN(et, x.getKey(), x.getValue().doubleValue() / totalTraces));
                 }
             }
@@ -256,17 +287,16 @@ public class QueryPlanExistences implements QueryPlan{
 
     /**
      * Extract the constraints that correspond to the 'exactly' template.
-     * @param joinedUnion A RDD that contains objects of the form (eventA,eventB,traceID), i.e. which traces
-     *                    contain at least one occurrence of the pair (eventA, eventB)
-     * @param bUniqueSingle A spark broadcast map, that contains a map of the form (event type) -> # traces
+     *
+     * @param joinedUnion   A Dataset that contains objects of the form (eventA,eventB,traceID), i.e. which traces
+     *                      contain at least one occurrence of the pair (eventA, eventB)
+     * @param uniqueSingleDf A Dataset that contains a map of the form (event type) -> # traces
      *                      that contain this event type
-     * @param bSupport A spark broadcast variable, that corresponds to the user-defined support
-     * @param bTotalTraces Total traces in this log database
-     * @param notFound A set of the event pairs that have 0 occurrence in the log database
+     * @param support      the user-defined support
+     * @param totalTraces  Total traces in this log database
      */
-    private void coExistence(JavaRDD<EventPairToNumberOfTrace> joinedUnion,
-                             Broadcast<Map<String, Long>> bUniqueSingle, Broadcast<Double> bSupport,
-                             Broadcast<Long> bTotalTraces, Set<EventPair> notFound) {
+    private void coExistence(Dataset<EventPairToNumberOfTrace> joinedUnion,
+                             Dataset<EventTypeOccurrences> uniqueSingleDf, double support, long totalTraces) {
 
         // |A| = |IndexTable(a,b) U IndexTable(b,a)|, i.e., unique traces where a and b co-exist
         // total_traces = |A| + (non-of them exist) + (only 'a' exist) + (only b exist) (1)
@@ -274,44 +304,54 @@ public class QueryPlanExistences implements QueryPlan{
         // where the co-existence is true is when |A|+(non-of them exist) >= support (2)
         // (1)+(2)=> total_traces - (unique traces of a) + |A| - (unique traces of b) + |A| >= support* total_traces
         //  total_traces - (unique traces of a) - (unique traces of b) - |A| >= support* total_traces
-        List<EventPairSupport> coExistence = joinedUnion
-                .filter(x-> !x.getEventA().equals(x.getEventB())) //remove pairs with the same event type
-                .filter(x -> x.getEventA().compareTo(x.getEventB()) <= 0)
-                .filter(x -> x.getNumberOfTraces() >= (bSupport.getValue()) * bTotalTraces.getValue())
-                .map(x -> {
-                    double sup = (bTotalTraces.getValue() - bUniqueSingle.getValue().get(x.getEventA()) -
-                            bUniqueSingle.getValue().get(x.getEventB()) + 2L * x.getNumberOfTraces());
-                    return new Abstract2DeclareConstraint(x.getEventA(), x.getEventB(), x.getNumberOfTraces(), sup);
-                })
-                .filter(x -> x.getSupport() >= (bSupport.getValue() * bTotalTraces.getValue()))
-                .collect()
-                .stream().map(x -> new EventPairSupport(x.getEventA(), x.getEventB(),
-                        x.getSupport() / bTotalTraces.value()))
-                .collect(Collectors.toList());
+        Dataset<EventPairToNumberOfTrace> initialFiltered = joinedUnion
+                .filter(functions.col("eventA").notEqual(functions.col("eventB"))) // Remove self pairs
+                .filter(functions.col("eventA").leq(functions.col("eventB"))) // Order pairs
+                .filter(functions.col("numberOfTraces").geq(support * totalTraces)); // Minimum support check
+
+        Dataset<Row> joinedWithUnique = initialFiltered
+                .join(uniqueSingleDf.withColumnRenamed("eventName", "eventA")
+                        .withColumnRenamed("numberOfTraces", "uniqueA"), "eventA", "left")
+                .join(uniqueSingleDf.withColumnRenamed("eventName", "eventB")
+                        .withColumnRenamed("numberOfTraces", "uniqueB"), "eventB", "left");
+
+        Dataset<Row> filteredAndComputed = joinedWithUnique
+                .withColumn("computedSupport", functions.expr(
+                        totalTraces + " - uniqueA - uniqueB + 2 * numberOfTraces"
+                ))
+                .filter(functions.col("computedSupport").geq(support * totalTraces)) // Filter based on computed support
+                .withColumn("support", functions.col("computedSupport").divide(totalTraces)) // Normalize support
+                .select("eventA", "eventB", "support");
+
+        List<EventPairSupport> coExistence = filteredAndComputed
+                .as(Encoders.bean(EventPairSupport.class))
+                .collectAsList();
         queryResponseExistence.setCoExistence(coExistence);
     }
 
-    private void notCoExistence(JavaRDD<EventPairToNumberOfTrace> joinedUnion,
-                             Broadcast<Map<String, Long>> bUniqueSingle, Broadcast<Double> bSupport,
-                             Broadcast<Long> bTotalTraces, Set<EventPair> notFound) {
+    private void notCoExistence(Dataset<EventPairToNumberOfTrace> joinedUnion,
+                                Dataset<EventTypeOccurrences> uniqueSingleDf, double support, long totalTraces,
+                                Set<EventTypes> notFound) {
         //valid event types can be used as first in a pair (since they have support greater than the user-defined)
-        List<EventPairSupport> notCoExistence = joinedUnion
-                .filter(x-> !x.getEventA().equals(x.getEventB())) //remove pairs with the same event type
-                .filter(x -> x.getEventA().compareTo(x.getEventB()) <= 0)//filter same pair that appears in both ways
-                .filter(x -> x.getNumberOfTraces() <= ((1 - bSupport.getValue()) * bTotalTraces.getValue()))//filter based on support
-                .map(x -> new EventPairSupport(x.getEventA(), x.getEventB(),
-                        1-(double) x.getNumberOfTraces() / bTotalTraces.getValue()))
-                .collect();
+        Dataset<EventPairToNumberOfTrace> initialFiltered = joinedUnion
+                .filter(functions.col("eventA").notEqual(functions.col("eventB"))) // Remove self pairs
+                .filter(functions.col("eventA").leq(functions.col("eventB"))) // Order pairs
+                .filter(functions.col("numberOfTraces").leq(1-support * totalTraces)); // Minimum support check
+
+        List<EventPairSupport> notCoExistence =initialFiltered
+                .selectExpr("eventA", "eventB", String.format("1-numberOfTraces/%s as support", totalTraces))
+                .as(Encoders.bean(EventPairSupport.class))
+                .collectAsList();
 
         //Add all the pairs in the notFound that their reverse is also in this set. Meaning that these two
         //events never co-exist in the entire database
         Set<EventPairSupport> notCoExist = new HashSet<>();
-        for(EventPair ep:notFound){
-            if(notFound.contains(new EventPair(new Event(ep.getEventB().getName()),new Event(ep.getEventA().getName())))){
-                if(ep.getEventA().getName().compareTo(ep.getEventB().getName())>0) {
-                    notCoExist.add(new EventPairSupport(ep.getEventA().getName(),ep.getEventB().getName(),1));
-                }else{
-                    notCoExist.add(new EventPairSupport(ep.getEventB().getName(),ep.getEventA().getName(),1));
+        for (EventTypes ep : notFound) {
+            if (notFound.contains(new EventTypes(ep.getEventB(), ep.getEventA()))) {
+                if (ep.getEventA().compareTo(ep.getEventB()) > 0) {
+                    notCoExist.add(new EventPairSupport(ep.getEventA(), ep.getEventB(), 1));
+                } else {
+                    notCoExist.add(new EventPairSupport(ep.getEventB(), ep.getEventA(), 1));
                 }
             }
         }
@@ -324,113 +364,157 @@ public class QueryPlanExistences implements QueryPlan{
 
     /**
      * Extract the constraints that correspond to the 'choice' template.
-     * @param uEventType a RDD in the form (event type, [(traceId,#occurrences)])
-     * @param bSupport A spark broadcast variable, that corresponds to the user-defined support
-     * @param bTotalTraces Total traces in this log database
+     *
+     * @param uEventType   a Dataset in the form (event type, [(traceId,#occurrences)])
+     * @param support     the user-defined support
+     * @param totalTraces Total traces in this log database
      */
-    private void choice(JavaRDD<UniqueTracesPerEventType> uEventType, Broadcast<Double> bSupport, Broadcast<Long> bTotalTraces) {
+    private void choice(Dataset<UniqueTracesPerEventType> uEventType, double support, long totalTraces) {
         //create possible pairs without duplication
-        List<EventPairSupport> choice = uEventType.keyBy(UniqueTracesPerEventType::getEventType)
-                .cartesian(uEventType.keyBy(UniqueTracesPerEventType::getEventType))
-                .filter(x -> x._1._1.compareTo(x._2._1) < 0) //remove duplicate pairs
-                //filter based on the total number of traces that contain either of the two event types (early pruning)
-                .filter(x -> x._1._2.getOccurrences().size() + x._2._2.getOccurrences().size() >=
-                        (bSupport.getValue()) * bTotalTraces.getValue())
-                //actual count the traces in which either of them exists (removing the duplicate counts - traces where
-                //both exist)
-                .map(x -> {
-                    LinkedHashSet<String> listA = x._1._2.getOccurrences().stream()
-                            .map(OccurrencesPerTrace::getTraceId).collect(Collectors.toCollection(LinkedHashSet::new));
-                    listA.addAll(x._2._2.getOccurrences().stream().map(OccurrencesPerTrace::getTraceId)
-                            .collect(Collectors.toList()));
-                    return new EventPairSupport(x._1._1, x._2._1, (double) listA.size() / bTotalTraces.getValue());
-                })
-                //filter based on the support (correct filtering)
-                .filter(x -> x.getSupport() >= bSupport.getValue())
-                .collect();
-        //add them to the result set
+
+        Dataset<Row> eventPairs = uEventType.alias("a")
+                .crossJoin(uEventType.alias("b")) // Generates ALL event combinations
+                // Avoid duplicate pairs (A, B) & (B, A)
+                .filter(functions.col("a.eventName").lt(functions.col("b.eventName")))
+                .select(
+                        functions.col("a.eventName").alias("eventA"),
+                        functions.col("b.eventName").alias("eventB"),
+                        functions.col("a.occurrences").alias("occurrencesA"),
+                        functions.col("b.occurrences").alias("occurrencesB")
+                );
+
+        // Apply early pruning: only keep event pairs where the total occurrences meet the threshold
+        Dataset<Row> filteredPairs = eventPairs
+                .withColumn("totalOccurrences", functions.expr("size(occurrencesA) + size(occurrencesB)"))
+                .filter(functions.col("totalOccurrences").geq(support * totalTraces)); // Early filtering
+
+        //actual count the traces in which either of them exists (removing the duplicate counts - traces where
+        //both exist)
+        Dataset<EventPairSupport> calculateSupport = filteredPairs
+                .withColumn("uniqueTraces", functions.expr(
+                        "array_union(transform(occurrencesA, x -> x.traceId), transform(occurrencesB, x -> x.traceId))"
+                ))
+                .withColumn("traceCount", functions.size(functions.col("uniqueTraces"))) // Count unique traces
+                .withColumn("support", functions.col("traceCount").divide(totalTraces)) // Compute support
+                .filter(functions.col("support").geq(support)) // Final filtering based on support
+                .select("eventA", "eventB", "support")
+                .as(Encoders.bean(EventPairSupport.class));
+
+        List<EventPairSupport> choice = calculateSupport.collectAsList();
         queryResponseExistence.setChoice(choice);
     }
 
 
     /**
      * Extract the constraints that correspond to the 'exclusive choice' template.
-     * @param joined A RDD that contains objects of the form (eventA,eventB,traceID), i.e. which traces
-     *                    contain at least one occurrence of the pair (eventA, eventB)
-     * @param bUniqueSingle A spark broadcast map, that contains a map of the form (event type) -> # traces
-     *                      that contain this event type
-     * @param bSupport A spark broadcast variable, that corresponds to the user-defined support
-     * @param bTotalTraces Total traces in this log database
-     * @param notFound A set of the event pairs that have 0 occurrence in the log database
+     *
+     * @param joinedUnion        A Dataset that contains objects of the form (eventA,eventB,traceID), i.e. which traces
+     *                      contain at least one occurrence of the pair (eventA, eventB)
+     * @param uniqueSingleDf A Dataset that contains a map of the form (event type) -> # traces
+     *      *                      that contain this event type
+     * @param uniqueSingle The same as uniqueSingleDF but located in master
+     * @param support      the user-defined support
+     * @param totalTraces  Total traces in this log database
+     * @param notFound      A set of the event pairs that have 0 occurrence in the log database
      */
-    private void exclusiveChoice(JavaRDD<EventPairToNumberOfTrace> joined, Broadcast<Map<String, Long>> bUniqueSingle,
-                                 Broadcast<Double> bSupport, Broadcast<Long> bTotalTraces, Set<EventPair> notFound) {
+    private void exclusiveChoice(Dataset<EventPairToNumberOfTrace> joinedUnion, Dataset<EventTypeOccurrences> uniqueSingleDf,
+                                 Map<String,Long> uniqueSingle,double support, long totalTraces, Set<EventTypes> notFound) {
+
+        Dataset<EventPairToNumberOfTrace> initialFiltered = joinedUnion
+                .filter(functions.col("eventA").notEqual(functions.col("eventB"))) // Remove self pairs
+                .filter(functions.col("eventA").leq(functions.col("eventB"))); // Order pairs
+
+        Dataset<Row> joinedWithUnique = initialFiltered
+                .join(uniqueSingleDf.withColumnRenamed("eventName", "eventA")
+                        .withColumnRenamed("numberOfTraces", "uniqueA"), "eventA", "left")
+                .join(uniqueSingleDf.withColumnRenamed("eventName", "eventB")
+                        .withColumnRenamed("numberOfTraces", "uniqueB"), "eventB", "left");
 
         // detects exclusive choice in pairs that appear at least once in the log database
-        List<EventPairSupport> exclusiveChoice = joined.filter(x -> x.getEventA().compareTo(x.getEventB()) < 0)
-                .filter(x->!x.getEventA().equals(x.getEventB()))
-                .map(x -> {
-                    double sup = (double) (bUniqueSingle.getValue().get(x.getEventA())
-                            + bUniqueSingle.getValue().get(x.getEventB()) - 2 * x.getNumberOfTraces()) / bTotalTraces.getValue();
-                    return new EventPairSupport(x.getEventA(), x.getEventB(), sup);
-                }).filter(x -> x.getSupport() >= bSupport.getValue())
-                .collect();
+        Dataset<EventPairSupport> exclusiveChoiceDF = joinedWithUnique
+                .withColumn("support", functions.expr(
+                        "(uniqueA + uniqueB - 2 * numberOfTraces) / " + totalTraces
+                ))
+                .filter(functions.col("support").geq(support))
+                .select("eventA","eventB","support")
+                .as(Encoders.bean(EventPairSupport.class));
+
+        List<EventPairSupport> exclusiveChoice = exclusiveChoiceDF.collectAsList();
 
         // detects exclusive choice in pairs that do not appear in the log database
         // therefore it checks if both (a,b) and (b,a) are in the notFound set
         Set<EventPairSupport> notCoExist = new HashSet<>();
-        for(EventPair ep:notFound){
-            if(notFound.contains(new EventPair(new Event(ep.getEventB().getName()),new Event(ep.getEventA().getName())))){
-                //check the order of the names in order to add each pair only once
-                if(ep.getEventA().getName().compareTo(ep.getEventB().getName())>0) {
-                    notCoExist.add(new EventPairSupport(ep.getEventA().getName(),ep.getEventB().getName(),1));
-                }else{
-                    notCoExist.add(new EventPairSupport(ep.getEventB().getName(),ep.getEventA().getName(),1));
+        for (EventTypes ep : notFound) {
+            if (notFound.contains(new EventTypes(ep.getEventB(), ep.getEventA()))) {
+                if (ep.getEventA().compareTo(ep.getEventB()) > 0) {
+                    notCoExist.add(new EventPairSupport(ep.getEventA(), ep.getEventB(), 1));
+                } else {
+                    notCoExist.add(new EventPairSupport(ep.getEventB(), ep.getEventA(), 1));
                 }
             }
         }
+
+
+
         //Calculates the support of the constraints detected from the not found pairs, as this behavior
         //should describe at least 'support'% of the total traces
-        List<EventPairSupport> exclusiveChoice2 = notCoExist.stream().map(x->{
-            double sup = (double) (bUniqueSingle.getValue().get(x.getEventA()) +
-                    bUniqueSingle.getValue().get(x.getEventB())) / bTotalTraces.getValue();
-            return new EventPairSupport(x.getEventA(), x.getEventB(), sup);
-        }).filter(x -> x.getSupport() >= bSupport.getValue())
-                        .collect(Collectors.toList());
+        List<EventPairSupport> exclusiveChoice2 = notCoExist.stream().map(x -> {
+                    double sup = (double) (uniqueSingle.get(x.getEventA()) +
+                           uniqueSingle.get(x.getEventB())) / totalTraces;
+                    return new EventPairSupport(x.getEventA(), x.getEventB(), sup);
+                }).filter(x -> x.getSupport() >= support)
+                .collect(Collectors.toList());
 
         //add both together and pass them to the response
         exclusiveChoice2.addAll(exclusiveChoice);
         queryResponseExistence.setExclusiveChoice(exclusiveChoice2);
     }
 
+
     /**
-     * Extract the constraints that correspond to the 'exclusive choice' template.
-     * @param joined A RDD that contains objects of the form (eventA,eventB,traceID), i.e. which traces
-     *                    contain at least one occurrence of the pair (eventA, eventB)
-     * @param bUniqueSingle A spark broadcast map, that contains a map of the form (event type) -> # traces
-     *                      that contain this event type
-     * @param bSupport A spark broadcast variable, that corresponds to the user-defined support
-     * @param bTotalTraces Total traces in this log database
+     * Extract the constraints that correspond to the 'responeddexistence' template.
+     *
+     * @param joinedUnion        A Dataset that contains objects of the form (eventA,eventB,traceID), i.e. which traces
+     *                      contain at least one occurrence of the pair (eventA, eventB)
+     * @param uniqueSingleDf A Dataset that contains a map of the form (event type) -> # traces
+     *      *                      that contain this event type
+     * @param support      the user-defined support
+     * @param totalTraces  Total traces in this log database
      */
-    private void respondedExistence(JavaRDD<EventPairToNumberOfTrace> joined, Broadcast<Map<String, Long>> bUniqueSingle,
-                                    Broadcast<Double> bSupport, Broadcast<Long> bTotalTraces) {
-        List<EventPairSupport> responseExistence = joined
-                .filter(x->!x.getEventA().equals(x.getEventB())) //remove duplicates, i.e. (eventA,eventA) pairs
-                .flatMap((FlatMapFunction<EventPairToNumberOfTrace, EventPairSupport>)x->{
-                    List<EventPairSupport> eps = new ArrayList<>();
-                    //check support for the constraint responded-existence(a,b)
-                    double sup = ((double) x.getNumberOfTraces() + bTotalTraces.getValue() -
-                            bUniqueSingle.getValue().get(x.getEventA())) / bTotalTraces.getValue();
-                    eps.add(new EventPairSupport(x.getEventA(), x.getEventB(), sup));
-                    //check support for the constraint responded-existence(b,a)
-                    sup = ((double) x.getNumberOfTraces() + bTotalTraces.getValue() -
-                            bUniqueSingle.getValue().get(x.getEventB())) / bTotalTraces.getValue();
-                    eps.add(new EventPairSupport(x.getEventB(), x.getEventA(), sup));
-                    return eps.iterator();
-                } )
-                .distinct()
-                .filter(x -> x.getSupport() >= bSupport.getValue())
-                .collect();
+
+    private void respondedExistence(Dataset<EventPairToNumberOfTrace> joinedUnion, Dataset<EventTypeOccurrences> uniqueSingleDf,
+                                   double support, long totalTraces) {
+        Dataset<EventPairToNumberOfTrace> initialFiltered = joinedUnion
+                .filter(functions.col("eventA").notEqual(functions.col("eventB"))); // Remove self pairs
+
+        Dataset<Row> joinedWithUnique = initialFiltered
+                .join(uniqueSingleDf.withColumnRenamed("eventName", "eventA")
+                        .withColumnRenamed("numberOfTraces", "uniqueA"), "eventA", "left")
+                .join(uniqueSingleDf.withColumnRenamed("eventName", "eventB")
+                        .withColumnRenamed("numberOfTraces", "uniqueB"), "eventB", "left");
+
+        // detects exclusive choice in pairs that appear at least once in the log database
+        Dataset<Row> extractedBothSupports = joinedWithUnique
+                .withColumn("supportA", functions.expr(
+                        String.format("(numberOfTraces + %s - uniqueA)/%s",totalTraces,totalTraces)
+                ))
+                .withColumn("supportB", functions.expr(
+                        String.format("(numberOfTraces + %s - uniqueB)/%s",totalTraces,totalTraces)
+                ));
+
+        Dataset<EventPairSupport> eventsForward = extractedBothSupports
+                .filter(functions.col("supportA").geq(support))
+                .selectExpr("eventA","eventB","supportA as support")
+                .as(Encoders.bean(EventPairSupport.class));
+
+        Dataset<EventPairSupport> eventsBackwards = extractedBothSupports
+                .filter(functions.col("supportB").geq(support))
+                .selectExpr("eventB as eventA","eventA as eventB","supportB as support")
+                .as(Encoders.bean(EventPairSupport.class));
+
+
+        List<EventPairSupport> responseExistence = eventsForward.union(eventsBackwards)
+                .distinct().collectAsList();
 
         //pass to the response
         this.queryResponseExistence.setRespondedExistence(responseExistence);
