@@ -37,12 +37,6 @@ public class SparkConfiguration {
     @Value("${s3.endpoint:http://localhost:9000}")
     private String s3endpoint;
 
-    @Value("${spark.driver.host:localhost}")
-    private String sparkDriverHost;
-
-    @Value("${spark.driver.port:42315}")
-    private String sparkDriverPort;
-
     @Bean
     public SparkConf sparkConf() {
         // Get the directory where JARs are located
@@ -55,18 +49,8 @@ public class SparkConfiguration {
                 .set("spark.executor.extraJavaOptions", "--add-opens java.base/sun.security.action=ALL-UNNAMED")
                 .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
                 .set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
-                .set("spark.sql.streaming.statefulOperator.checkCorrectness.enabled", "false")
-//                .set("spark.driver.host", sparkDriverHost)
-//                .set("spark.driver.port", sparkDriverPort)
-                // Use local paths - Spark will automatically distribute these JARs to workers
-//                .set("spark.jars", jarDir + "/hadoop-aws-3.3.4.jar,"
-//                        + jarDir + "/aws-java-sdk-bundle-1.12.262.jar,"
-//                        + jarDir + "/hadoop-client-3.3.4.jar,"
-//                        + jarDir + "/delta-spark_2.12-3.3.0.jar,"
-//                        + jarDir + "/delta-storage-3.3.0.jar")
-//                .set("spark.driver.maxResultSize", "5g")
-                // Ensure JARs are distributed to executors
-                .set("spark.submit.deployMode", "cluster");
+                .set("spark.deploy.mode", "client")
+                .set("spark.sql.streaming.statefulOperator.checkCorrectness.enabled", "false");
     }
 
     @Bean
