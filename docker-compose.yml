@@ -25,12 +25,28 @@ services:
     networks:
       - siesta-net
 
+    scylla:
+    container_name: scylla
+    image: scylladb/scylla:latest
+    ports:
+      - "9042:9042"
+    command: --smp 8 --memory 32G --reserve-memory 2G --overprovisioned 1 --api-address 0.0.0.0
+    volumes:
+      - scylla_data:/var/lib/scylla
+    networks:
+      - siesta-net
+    healthcheck:
+      test: ["CMD-SHELL", "nodetool status"]
+      interval: 15s
+      timeout: 15s
+      retries: 5
+
   query:
     build: .
     container_name: query
     stdin_open: true
     environment:
-      master.uri: spark://spark-master:7077  # Connect to Spark cluster instead of local
+      master.uri: spark://spark-master:7077 
       server.port: 8090 # port of the application
       database: s3 # cassandra or s3
       delta: "false" # True for streaming, False for batching
@@ -44,21 +60,13 @@ services:
       cassandra.contact.points: scylla
       cassandra.port: 9042
       cassandra.keyspace: siesta
-      # Spark driver -always point on a worker node
-#      spark.driver.host: spark-worker-1
-#      spark.driver.port: 42315
     volumes:
       - ./build:/root/.m2
     ports:
       - '8090:8090'   # Application port
-#      - '42315:42315' # Spark driver port
     networks:
       - siesta-net
       - cluster-net
-    depends_on:
-      - spark-master
-      - spark-worker-1
-      - spark-worker-2
 
   spark-master:
     build:
