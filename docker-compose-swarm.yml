@@ -1,0 +1,154 @@
+version: '3'
+
+networks:
+  siesta-swarm-net:
+
+volumes:
+  maven-cache:
+  minio-storage:
+
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_storage:/data
+    networks:
+      - siesta-swarm-net
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - 'node.labels.host == m1'
+          
+  scylla:
+    container_name: scylla
+    image: scylladb/scylla:latest
+    ports:
+      - "9042:9042"
+    command: --smp 8 --memory 32G --reserve-memory 2G --overprovisioned 1 --api-address 0.0.0.0
+    volumes:
+      - scylla_data:/var/lib/scylla
+    networks:
+      - siesta-net
+    healthcheck:
+      test: ["CMD-SHELL", "nodetool status"]
+      interval: 15s
+      timeout: 15s
+      retries: 5
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+      placement:
+        constraints:
+          - 'node.labels.host == m1'
+      
+  query:
+    build: .
+    image: siesta-query:latest
+    stdin_open: true
+    networks:
+      - siesta-swarm-net
+    ports:
+      - '8090:8090'
+    environment:
+      master.uri: spark://spark:7077
+      server.port: 8090 
+      database: s3 # cassandra or s3
+      delta: "false" # True for streaming, False for batching
+      spring.mvc.pathmatch.matching-strategy: ANT_PATH_MATCHER
+      #for s3 (minio)
+      s3.endpoint: http://minio:9000
+      s3.user: minioadmin
+      s3.key: minioadmin
+      s3.timeout: 600000
+      # Scylla/Cassandra configuration
+      cassandra.contact.points: scylla
+      cassandra.port: 9042
+      cassandra.keyspace: siesta
+    volumes:
+      - maven-cache:/root/.m2
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - 'node.labels.host == m1'
+
+  spark:
+    image: spark-base:3.5.4
+    networks:
+      - siesta-swarm-net
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_MEMORY=16G
+      - SPARK_MASTER_CORES=4
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_USER=spark
+      - LOGS_PATH=/tmp/spark-events
+      - RESULTS_PATH=/tmp/output/
+      - SPARK_MASTER_WEBUI_PORT=8085
+    ports:
+      - '8085:8085'
+      - '4040:4040'
+      - '8081:8081'
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - 'node.labels.host == m1'
+
+  spark-worker-1:
+    image: spark-base:3.5.4
+    networks:
+      - siesta-swarm-net
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark:7077
+      - SPARK_WORKER_MEMORY=8G
+      - SPARK_WORKER_CORES=4
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_USER=spark
+      #- LOGS_PATH=/tmp/spark-events
+      #- RESULTS_PATH=/tmp/output/
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - 'node.labels.host == m2'
+
+  spark-worker-anaconda-2:
+    image: spark-base:3.5.4
+    networks:
+      - siesta-swarm-net
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark:7077
+      - SPARK_WORKER_MEMORY=8G
+      - SPARK_WORKER_CORES=4
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_USER=spark
+      #- LOGS_PATH=/tmp/spark-events
+      #- RESULTS_PATH=/tmp/output/
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - 'node.labels.host == m2'
