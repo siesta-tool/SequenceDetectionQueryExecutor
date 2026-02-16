@@ -1,24 +1,25 @@
 package com.datalab.siesta.queryprocessor.model.DBModel;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
  * The class that represents an et-pair without the conditions.
  * @see com.datalab.siesta.queryprocessor.model.Events.EventPair (for implementation with conditions)
  */
-public class EventTypes{
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+public class EventTypes implements Serializable{
     private String eventA;
 
     private String eventB;
-
-    public EventTypes(String eventA, String eventB) {
-        this.eventA = eventA;
-        this.eventB = eventB;
-    }
-
-    public String getEventA() { return eventA; }
-
-    public String getEventB() { return eventB; }
 
     @Override
     public String toString() {
@@ -37,4 +38,5 @@ public class EventTypes{
     public int hashCode() {
         return Objects.hash(eventA, eventB);
     }
+
 }

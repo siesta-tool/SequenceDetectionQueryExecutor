@@ -41,37 +41,37 @@ To run it locally specify the properties in the application.properties file in t
 and then run the project after adding in the ``Add VM options`` under ``Run/Edit configurations`` the following line \
 ``--add-opens=java.base/sun.nio.ch=ALL-UNNAMED ``
 
-### Running in docker
-To run it locally open a terminal inside SequenceDetectionQueryExecutor file and run:
-```bash
-docker-compose build
-docker-compose up -d
-```
+### Running with Docker
+
+#### Single Machine Deployment (Development/Testing)
+
+To run everything on one machine:
+
 Ensure that this docker and the database can communicate, either run database on a public ip
 or connect these two on the same network. You need to specify these environment variables
 (you can keep the default ones if you want) in
 the docker-compose file before running the QueryExecutor.
+
+#### Distributed Cluster Deployment (Production)
+
+For distributed processing with workers on different machines, see:
+- **[QUICKSTART.md](QUICKSTART.md)** - Quick setup guide
+- **[CLUSTER_DEPLOYMENT.md](CLUSTER_DEPLOYMENT.md)** - Comprehensive deployment documentation
+
+Quick setup:
+
+**On Master Machine:**
+```bash
+./setup-master.sh
 ```
-      master.uri: local[*]
-      database: s3
-      delta: false # True for streaming, False for batching
-      #for s3 (minio)
-      s3.endpoint: http://minio:9000
-      s3.user: minioadmin
-      s3.key: minioadmin
-      s3.timeout: 600000
-      server.port: 8090 
+
+**On Worker Machines:**
+```bash
+./setup-worker.sh
 ```
-### SIESTA Query type list
-Below there is a list of all the possible SIESTA queries along with an example JSON or an example url assuming the
-Query Processor is running on localhost:8090
-* GET /health/check (Checks if the application is up and running)
-* GET /lognames (Returns the names of the different log databases)
-* POST /eventTypes (Returns the names of the different event types for a specific log database) \
-  Example JSON:
-```
-{
-  "log_name" : "test"
+
+This will deploy a true distributed Spark cluster with workers running on separate physical machines for better scalability and performance.
+
 }
 ```
 * GET /refreshData (Reloads metadata, this should run after a new log file is appended)

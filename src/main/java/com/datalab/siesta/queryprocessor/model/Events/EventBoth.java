@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 
+import java.io.Serializable;
 import java.sql.Timestamp;
 import java.util.Objects;
 
@@ -15,7 +16,7 @@ import java.util.Objects;
  * A SIESTA event that contains both time and position information
  */
 @JsonSerialize(using = EventBothSerializer.class)
-public class EventBoth extends EventTs implements Comparable{
+public class EventBoth extends EventTs implements Comparable, Serializable {
 
     @JsonView(MappingJacksonViews.EventAllInfo.class)
     private int position;

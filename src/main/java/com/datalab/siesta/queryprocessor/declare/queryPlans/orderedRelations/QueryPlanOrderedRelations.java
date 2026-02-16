@@ -5,31 +5,30 @@ import com.datalab.siesta.queryprocessor.declare.DeclareUtilities;
 import com.datalab.siesta.queryprocessor.declare.model.*;
 import com.datalab.siesta.queryprocessor.declare.queryResponses.QueryResponseOrderedRelations;
 import com.datalab.siesta.queryprocessor.declare.queryWrappers.QueryOrderRelationWrapper;
+import com.datalab.siesta.queryprocessor.model.DBModel.EventTypes;
 import com.datalab.siesta.queryprocessor.model.DBModel.Metadata;
-import com.datalab.siesta.queryprocessor.model.Events.EventPair;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryPlans.QueryPlan;
 import com.datalab.siesta.queryprocessor.model.Queries.QueryResponses.QueryResponse;
 import com.datalab.siesta.queryprocessor.model.Queries.Wrapper.QueryWrapper;
 
+import com.datalab.siesta.queryprocessor.storage.model.EventTypeTracePositions;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
+
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.broadcast.Broadcast;
+import org.apache.spark.sql.*;
 import org.apache.spark.storage.StorageLevel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.RequestScope;
-import scala.Tuple2;
-import scala.Tuple3;
+
 
 import java.util.*;
-import java.util.stream.Collectors;
+
 
 @Component
 @RequestScope
-public class QueryPlanOrderedRelations implements QueryPlan{
+public class QueryPlanOrderedRelations implements QueryPlan {
 
     @Setter
     protected Metadata metadata;
@@ -37,16 +36,14 @@ public class QueryPlanOrderedRelations implements QueryPlan{
     protected JavaSparkContext javaSparkContext;
     @Getter
     protected QueryResponseOrderedRelations queryResponseOrderedRelations;
-    protected OrderedRelationsUtilityFunctions utils;
     protected DeclareUtilities declareUtilities;
 
     @Autowired
     public QueryPlanOrderedRelations(DeclareDBConnector declareDBConnector, JavaSparkContext javaSparkContext,
-                                     OrderedRelationsUtilityFunctions utils, DeclareUtilities declareUtilities) {
+                                     DeclareUtilities declareUtilities) {
         this.declareDBConnector = declareDBConnector;
         this.javaSparkContext = javaSparkContext;
-        this.utils = utils;
-        this.declareUtilities=declareUtilities;
+        this.declareUtilities = declareUtilities;
     }
 
     public void initQueryResponse() {
@@ -57,31 +54,26 @@ public class QueryPlanOrderedRelations implements QueryPlan{
     @Override
     public QueryResponse execute(QueryWrapper qw) {
         QueryOrderRelationWrapper qpw = (QueryOrderRelationWrapper) qw;
-         //query IndexTable
-         JavaRDD<EventPairToTrace> indexRDD = declareDBConnector.queryIndexOriginalDeclare(this.metadata.getLogname())
-         .filter(x -> !x.getEventA().equals(x.getEventB()));
+        //query IndexTable
+        Dataset<EventPairToTrace> indexRDD = declareDBConnector.queryIndexOriginalDeclare(this.metadata.getLogname())
+                .filter(functions.col("eventA").notEqual("eventB"));
         //query SingleTable
-        JavaPairRDD<Tuple2<String, String>, List<Integer>> singleRDD = declareDBConnector
+        Dataset<EventTypeTracePositions> singleRDD = declareDBConnector
                 .querySingleTableAllDeclare(this.metadata.getLogname());
 
         //join tables using joinTables and flat map to get the single events
-        JavaRDD<EventPairTraceOccurrences> joined = joinTables(indexRDD, singleRDD);
+        Dataset<EventPairTraceOccurrences> joined = joinTables(indexRDD, singleRDD);
         joined.persist(StorageLevel.MEMORY_AND_DISK());
 
         //count the occurrences using the evaluate constraints
-        JavaRDD<Abstract2OrderConstraint> c = evaluateConstraint(joined, qpw.getConstraint());
+        Dataset<Abstract2OrderConstraint> c = evaluateConstraint(joined);
         //filter based on the values of the SingleTable and the provided support and write to the response
-        Map<String, Long> uEventType = declareDBConnector.querySingleTableDeclare(this.metadata.getLogname())
-                .map(x -> {
-                    long all = x.getOccurrences().stream().mapToLong(OccurrencesPerTrace::getOccurrences).sum();
-                    return new Tuple2<>(x.getEventType(), all);
-                }).keyBy(x -> x._1).mapValues(x -> x._2).collectAsMap();
-        Broadcast<Map<String, Long>> bUEventTypes = javaSparkContext.broadcast(uEventType);
-
+        Dataset<EventTypeOccurrences> eventTypeOccurrencesDataset = declareDBConnector
+                .extractTotalOccurrencesPerEventType(metadata.getLogname());
         //add the not-succession constraints detected from the event pairs that did not occur in the database log
-        extendNotSuccession(bUEventTypes.getValue(), this.metadata.getLogname(), c);
+        extendNotSuccession(eventTypeOccurrencesDataset, this.metadata.getLogname(), c);
         //filter based on the user defined support
-        filterBasedOnSupport(c, bUEventTypes, qpw.getSupport());
+        filterBasedOnSupport(c, eventTypeOccurrencesDataset, qpw.getSupport());
         joined.unpersist();
         return this.queryResponseOrderedRelations;
     }
@@ -94,25 +86,29 @@ public class QueryPlanOrderedRelations implements QueryPlan{
      * @param singleRDD a rdd of records that have the format (event
      * @ a rdd of {@link EventPairTraceOccurrences}
      */
-    public JavaRDD<EventPairTraceOccurrences> joinTables(JavaRDD<EventPairToTrace> indexRDD,
-                                                         JavaPairRDD<Tuple2<String, String>, List<Integer>> singleRDD) {
+    public Dataset<EventPairTraceOccurrences> joinTables(Dataset<EventPairToTrace> indexRDD,
+                                                         Dataset<EventTypeTracePositions> singleRDD) {
         //for the traces that contain an occurrence of the event pair (a,b), joins their occurrences of these
         //event types (extracted from the Single Table)
-        return indexRDD
-                .keyBy(r -> new Tuple2<>(r.getEventA(), r.getTrace_id()))
-                .join(singleRDD)
-                .map(x -> x._2)
-                //join based on the second event
-                .keyBy(x -> new Tuple2<>(x._1.getEventB(), x._1.getTrace_id()))
-                .join(singleRDD)
-                .map(x -> {
-                    String eventA = x._2._1._1.getEventA();//event a
-                    String eventB = x._2._1._1.getEventB();//event b
-                    List<Integer> f = x._2._1._2; // occurrences of the first event
-                    List<Integer> s = x._2._2;//occurrences of the second event
-                    String tid = x._1._2; //trace id
-                    return new EventPairTraceOccurrences(eventA, eventB, tid, f, s);
-                });
+
+        Dataset<Row> singleTransformed = singleRDD.
+                selectExpr("eventName", "traceId as trace_id", "positions");// Alias for first join
+
+        Dataset<EventPairTraceOccurrences> joined = indexRDD.as("primary")
+                .join(singleTransformed.as("singleA"), functions.col("primary.eventA")
+                        .equalTo(functions.col("singleA.eventName"))
+                        .and(functions.col("primary.trace_id")
+                                .equalTo(functions.col("singleA.trace_id"))), "inner")
+                .selectExpr("eventA", "eventB", "primary.trace_id", "singleA.positions as positionsA")
+                .join(singleTransformed.as("singleB"), functions.col("primary.eventB")
+                        .equalTo(functions.col("singleB.eventName"))
+                        .and(functions.col("primary.trace_id")
+                                .equalTo(functions.col("singleB.trace_id"))), "inner")
+                .selectExpr("eventA", "eventB", "primary.trace_id as traceId",
+                        "positionsA as occurrencesA", "singleB.positions as occurrencesB")
+                .as(Encoders.bean(EventPairTraceOccurrences.class));
+
+        return joined;
     }
 
     /**
@@ -120,69 +116,61 @@ public class QueryPlanOrderedRelations implements QueryPlan{
      * constraint type.
      *
      * @param joined     a rdd of {@link EventPairTraceOccurrences}
-     * @param constraint a string that describes the constraint under evaluation 'response', 'precedence'
-     *                   or 'succession' (which is the default execution)
      * @return a rdd of {@link  Abstract2OrderConstraint}
      */
-    public JavaRDD<Abstract2OrderConstraint> evaluateConstraint
-    (JavaRDD<EventPairTraceOccurrences> joined, String constraint) {
+    public Dataset<Abstract2OrderConstraint> evaluateConstraint
+    (Dataset<EventPairTraceOccurrences> joined) {
+        Dataset<Row> response = joined
+                .withColumn("s_r", functions.expr(
+                        "size(filter(occurrencesA, a -> exists(occurrencesB, y -> y > a)))"
+                ))
+                .selectExpr("eventA", "eventB", "'r' as type", "s_r as count"); // Precedence constraint
 
-        JavaRDD<Abstract2OrderConstraint> tuple4JavaRDD;
-        switch (constraint) {
-            case "response":
-                tuple4JavaRDD = joined.map(utils::countResponse);
-                break;
-            case "precedence":
-                tuple4JavaRDD = joined.map(utils::countPrecedence);
-                break;
-            default:
-                tuple4JavaRDD = joined.map(utils::countPrecedence).union(joined.map(utils::countResponse));
-                break;
-        }
-        return tuple4JavaRDD
-                //reduce by (eventA, eventB, mode - r/p)
-                .keyBy(y -> new Tuple3<>(y.getEventA(), y.getEventB(), y.getMode()))
-                .reduceByKey((x, y) -> {
-                    x.setOccurrences(x.getOccurrences() + y.getOccurrences());
-                    return x;
-                })
-                .map(x -> x._2);
+        Dataset<Row> precedence = joined
+                .withColumn("s_p", functions.expr(
+                        "size(filter(occurrencesB, b -> exists(occurrencesA, y -> y < b)))"
+                ))
+                .selectExpr("eventA", "eventB", "'p' as type", "s_p as count");
+        Dataset<Abstract2OrderConstraint> unioned = response.union(precedence)
+                .groupBy("eventA", "eventB", "type")
+                .agg(functions.sum("count").alias("occurrences"))
+                .withColumn("occurrences", functions.col("occurrences").cast("int"))
+                .selectExpr("eventA", "eventB", "type as mode", "occurrences")
+                .as(Encoders.bean(Abstract2OrderConstraint.class));
 
+        return unioned;
     }
 
 
     /**
      * filters based on support and constraint required and write them to the response
      *
-     * @param c the occurrences of different templates detected
-     * @param bUEventType a spark broadcast map fo the form (event type) -> total occurrences in the log database
-     * @param support the user-defined support
+     * @param c           the occurrences of different templates detected
+     * @param eventTypeOccurrences a spark broadcast map fo the form (event type) -> total occurrences in the log database
+     * @param support     the user-defined support
      */
-    public void filterBasedOnSupport(JavaRDD<Abstract2OrderConstraint> c,
-                                     Broadcast<Map<String, Long>> bUEventType, double support) {
-        Broadcast<Double> bSupport = javaSparkContext.broadcast(support);
+    public void filterBasedOnSupport(Dataset<Abstract2OrderConstraint> c,
+                                     Dataset<EventTypeOccurrences> eventTypeOccurrences, double support) {
+
         //calculates the support based on either the total occurrences of the first event (response)
         //or the occurrences of the second event (precedence)
-        JavaRDD<Tuple2<String, EventPairSupport>> intermediate = c.map(x -> {
-            long total;
-            if (x.getMode().equals("r")) { //response
-                total = bUEventType.getValue().get(x.getEventA());
-            } else {
-                total = bUEventType.getValue().get(x.getEventB());
-            }
-            long found = x.getOccurrences();
-            return new Tuple2<>(x.getMode(), new EventPairSupport(x.getEventA(), x.getEventB(), (double) found / total));
-        });
+        Dataset<Row> intermediate = getIntermediate(eventTypeOccurrences,c);
+
         intermediate.persist(StorageLevel.MEMORY_AND_DISK());
-        //filters based on the user-defined support and collects the result
-        List<Tuple2<String, EventPairSupport>> detected = intermediate
-                .filter(x -> x._2.getSupport() >= bSupport.getValue())
-                .collect();
-        //splits the patterns that correspond to response and precedence into two separete lists
-        List<EventPairSupport> responses = detected.stream().filter(x -> x._1.equals("r"))
-                .map(x -> x._2).collect(Collectors.toList());
-        List<EventPairSupport> precedence = detected.stream().filter(x -> x._1.equals("p"))
-                .map(x -> x._2).collect(Collectors.toList());
+
+        // filters based on the user-defined support and collect the results
+        Dataset<Row> detected = intermediate.filter(functions.col("support").geq(support));
+        List<EventPairSupport> responses = detected
+                .filter(functions.col("mode").equalTo("r"))
+                .selectExpr("eventA", "eventB", "support")
+                .as(Encoders.bean(EventPairSupport.class))
+                .collectAsList();
+
+        List<EventPairSupport> precedence = detected
+                .filter(functions.col("mode").equalTo("p"))
+                .selectExpr("eventA", "eventB", "support")
+                .as(Encoders.bean(EventPairSupport.class))
+                .collectAsList();
 
         if (!precedence.isEmpty() && !responses.isEmpty()) { //we are looking for succession and no succession
             setResults(responses, "response");
@@ -203,13 +191,22 @@ public class QueryPlanOrderedRelations implements QueryPlan{
             //handle no succession
             //event pairs where both "r" and "p" have support less than the user-defined
             //for the pairs that do not appear here the function extendNotSuccession() is executed - check below
-            List<Tuple2<String, EventPairSupport>> notSuccession = intermediate
-                    .filter(x -> x._2.getSupport() <= (1 - bSupport.getValue()))
-                    .collect();
-            List<EventPairSupport> notSuccessionR = notSuccession.stream().filter(x -> x._1.equals("r"))
-                    .map(x -> x._2).collect(Collectors.toList());
-            List<EventPairSupport> notSuccessionP = notSuccession.stream().filter(x -> x._1.equals("p"))
-                    .map(x -> x._2).collect(Collectors.toList());
+
+            Dataset<Row> notSuccession = intermediate
+                    .filter(functions.col("support").leq(1-support));
+
+            List<EventPairSupport> notSuccessionR = notSuccession
+                    .filter(functions.col("mode").equalTo("r"))
+                    .selectExpr("eventA", "eventB", "support")
+                    .as(Encoders.bean(EventPairSupport.class))
+                    .collectAsList();
+
+            List<EventPairSupport> notSuccessionP = notSuccession
+                    .filter(functions.col("mode").equalTo("p"))
+                    .selectExpr("eventA", "eventB", "support")
+                    .as(Encoders.bean(EventPairSupport.class))
+                    .collectAsList();
+
             //create the event pair support based on the above event pairs
             List<EventPairSupport> notSuccessionList = new ArrayList<>();
             for (EventPairSupport r1 : notSuccessionR) {
@@ -230,6 +227,39 @@ public class QueryPlanOrderedRelations implements QueryPlan{
             setResults(precedence, "precedence");
         }
         intermediate.unpersist();
+    }
+
+    /**
+     * This method joins the two datasets and calculates the support, which is based
+     * either on the total occurrences of the first event (response) or the occurrences of the
+     * second event (precedence). This is handled by the case statement
+     * @param eventTypeOccurrences occurrences of each event type
+     * @param c dataset contains the pattern occurrences
+     * @return
+     */
+    protected Dataset<Row> getIntermediate(Dataset<EventTypeOccurrences> eventTypeOccurrences,
+                                           Dataset<Abstract2OrderConstraint> c){
+        Dataset<Row> firstEvent = eventTypeOccurrences.as("et")
+                .withColumnRenamed("eventName", "eventA")
+                .withColumnRenamed("numberOfTraces", "totalA");
+
+        Dataset<Row> secondEvent = eventTypeOccurrences.as("et2")
+                .withColumnRenamed("eventName", "eventB")
+                .withColumnRenamed("numberOfTraces", "totalB");
+
+        Dataset<Row> joinedDf = c.as("primary")
+                .join(firstEvent.as("et"),
+                        functions.col("primary.eventA").equalTo(functions.col("et.eventA")), "left")
+                .join(secondEvent.as("et2"),
+                        functions.col("primary.eventB").equalTo(functions.col("et2.eventB")), "left");
+
+        Dataset<Row> intermediate = joinedDf
+                .withColumn("total", functions.expr(
+                        "CASE WHEN mode = 'r' THEN totalA ELSE totalB END"
+                ))
+                .withColumn("support", functions.col("occurrences").cast("double").divide(functions.col("total")))
+                .select("mode", "primary.eventA", "primary.eventB", "support");
+        return intermediate;
     }
 
 
@@ -263,22 +293,24 @@ public class QueryPlanOrderedRelations implements QueryPlan{
      * @param logname    the name of the log database (used to load information from the database)
      * @param cSimple    the extracted constraints, a rdd of {@link Abstract2OrderConstraint}
      */
-    public void extendNotSuccession(Map<String, Long> uEventType, String logname,
-                                    JavaRDD<Abstract2OrderConstraint> cSimple) {
+    public void extendNotSuccession(Dataset<EventTypeOccurrences> uEventType, String logname,
+                                    Dataset<Abstract2OrderConstraint> cSimple) {
         // since the first argument may not be available it will be loaded and calculated from the database
         if (uEventType == null) {
             uEventType = declareDBConnector.extractTotalOccurrencesPerEventType(logname);
         }
         //transform rdd to a compatible version to be used by the extractNotFoundPairs
-        JavaRDD<EventPairToNumberOfTrace> mappedRdd = cSimple
-                .map(x->new EventPairToNumberOfTrace(x.getEventA(),x.getEventB(),1));
-        Set<EventPair> notFound = declareUtilities.extractNotFoundPairs(uEventType.keySet(),mappedRdd);
+        Dataset<EventPairToNumberOfTrace> mappedRdd = cSimple
+                .selectExpr("eventA", "eventB", "1 as numberOfTraces")
+                .as(Encoders.bean(EventPairToNumberOfTrace.class));
+
+        Set<String> keys = new HashSet<>(uEventType.select("eventName").as(Encoders.STRING()).collectAsList());
+        Set<EventTypes> notFound = declareUtilities.extractNotFoundPairs(keys, mappedRdd);
         //transform event pairs to event pairs with support (which is 100% by definition)
-        List<EventPairSupport> result = notFound.stream().map(x -> new EventPairSupport(x.getEventA().getName(),
-                x.getEventB().getName(), 1)).collect(Collectors.toList());
+        List<EventPairSupport> result = notFound.stream().map(x -> new EventPairSupport(x.getEventA(),
+                x.getEventB(), 1)).toList();
         this.queryResponseOrderedRelations.setNotSuccession(result);
     }
-
 
 
 }

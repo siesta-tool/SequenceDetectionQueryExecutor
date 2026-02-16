@@ -1,78 +1,116 @@
-version: '3.7'
+version: '3.8'
 networks:
-  cluster_net:
-    external: true
+  siesta-net:
     name: siesta-net
+    external: true
+  cluster-net:
+    name: cluster-net
+    driver: bridge
+volumes:
+    minio_storage: {}
 
 services:
-  funnel:
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_storage:/data
+    networks:
+      - siesta-net
+
+    scylla:
+    container_name: scylla
+    image: scylladb/scylla:latest
+    ports:
+      - "9042:9042"
+    command: --smp 8 --memory 32G --reserve-memory 2G --overprovisioned 1 --api-address 0.0.0.0
+    volumes:
+      - scylla_data:/var/lib/scylla
+    networks:
+      - siesta-net
+    healthcheck:
+      test: ["CMD-SHELL", "nodetool status"]
+      interval: 15s
+      timeout: 15s
+      retries: 5
+
+  query:
     build: .
+    container_name: query
     stdin_open: true
     environment:
-      master.uri: local[*]
-      database: s3 # cassandra-rdd or s3
-      delta: false # True for streaming, False for batching
-      #for s3 (minio)
+      master.uri: spark://spark-master:7077 
+      server.port: 8090 # port of the application
+      database: s3 # cassandra or s3
+      delta: "false" # True for streaming, False for batching
+      spring.mvc.pathmatch.matching-strategy: ANT_PATH_MATCHER
+      # S3 (minio)
       s3.endpoint: http://minio:9000
       s3.user: minioadmin
       s3.key: minioadmin
       s3.timeout: 600000
-      #for cassandra
-      cassandra.max_requests_per_local_connection: 32768
-      cassandra.max_requests_per_remote_connection: 22000
-      cassandra.connections_per_host: 1000
-      cassandra.max_queue_size: 1024
-      cassandra.connection_timeout: 30000
-      cassandra.read_timeout: 30000
-      spring.data.cassandra.contact-points: cassandra
-      spring.data.cassandra.port: 9042
-      spring.data.cassandra.user: cassandra
-      spring.data.cassandra.password: cassandra
-      server.port: 8090 # port of the application
+      # Scylla/Cassandra
+      cassandra.contact.points: scylla
+      cassandra.port: 9042
+      cassandra.keyspace: siesta
     volumes:
       - ./build:/root/.m2
     ports:
-      - '8090:8090'
+      - '8090:8090'   # Application port
     networks:
-      - cluster_net
+      - siesta-net
+      - cluster-net
 
-#  spark-master:
-#    image: bitnami/spark:3.5.4
-#    container_name: spark-master
-#    environment:
-#      - SPARK_MODE=master
-#      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-#      - SPARK_RPC_ENCRYPTION_ENABLED=no
-#      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-#      - SPARK_SSL_ENABLED=no
-#    ports:
-#      - "7077:7077" # Spark master port
-#      - "8080:8080" # Spark Web UI
-#    networks:
-#      - cluster_net
-#
-#  spark-worker-1:
-#    image: bitnami/spark:3.5.4
-#    container_name: spark-worker-1
-#    environment:
-#      - SPARK_MODE=worker
-#      - SPARK_MASTER_URL=spark://spark-master:7077
-#      - SPARK_WORKER_MEMORY=1G
-#      - SPARK_WORKER_CORES=1
-#    depends_on:
-#      - spark-master
-#    networks:
-#      - cluster_net
-#
-#  spark-worker-2:
-#    image: bitnami/spark:3.5.4
-#    container_name: spark-worker-2
-#    environment:
-#      - SPARK_MODE=worker
-#      - SPARK_MASTER_URL=spark://spark-master:7077
-#      - SPARK_WORKER_MEMORY=1G
-#      - SPARK_WORKER_CORES=1
-#    depends_on:
-#      - spark-master
-#    networks:
-#      - cluster_net
+  spark-master:
+    build:
+      context: .
+      dockerfile: spark-base.Dockerfile
+    image: spark-base:3.5.4
+    container_name: spark-master
+    hostname: spark-master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_HOST=0.0.0.0
+      - SPARK_MASTER_PORT=7077
+      - SPARK_MASTER_WEBUI_PORT=8080
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+    ports:
+      - "7077:7077"
+      - "8080:8080"
+    networks:
+      - cluster-net
+      - siesta-net
+
+  spark-worker-1:
+    image: spark-base:3.5.4
+    container_name: spark-worker-1
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2
+    depends_on:
+      - spark-master
+    networks:
+      - cluster-net
+
+  spark-worker-2:
+    image: spark-base:3.5.4
+    container_name: spark-worker-2
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2
+    depends_on:
+      - spark-master
+    networks:
+      - cluster-net

@@ -1,9 +1,9 @@
 package com.datalab.siesta.queryprocessor.declare.queryPlans;
 
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.Function2;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Encoders;
+import org.apache.spark.sql.functions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.RequestScope;
@@ -44,7 +44,6 @@ public class QueryPlanState  implements QueryPlan{
 
     @Override
     public QueryResponse execute(QueryWrapper qw) {
-        // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'execute'");
     }
 
@@ -60,24 +59,23 @@ public class QueryPlanState  implements QueryPlan{
      * used by the QueryPlanner to specify how accurate the extracted constraints are.
      */
     public void extractStatistics(QueryWrapperDeclare qwd){
-        JavaRDD<PositionState> ps = declareDBConnector.queryPositionState(qwd.getLog_name());
-        int traces_stated = (int) ps.filter((Function<PositionState, Boolean>) x->{
-            return x.getRule().equals("first");
-        })
-        .map((Function<PositionState,Integer>)x->{
-            return ((int)x.getOccurrences());
-        })
-        .reduce((Function2<Integer,Integer,Integer>)(x,y)->{
-            return x + y;
-        });
+        Dataset<PositionState> ps = declareDBConnector.queryPositionState(qwd.getLog_name());
+        int traces_stated = ps.filter(functions.col("rule").equalTo("first"))
+                .select("occurrences")
+                .agg(functions.sum("occurrences").cast("int"))
+                .as(Encoders.INT())
+                .collectAsList()
+                .get(0);
         qwd.setIndexedTraces(traces_stated);
 
-        JavaRDD<ExistenceState> es = declareDBConnector.queryExistenceState(qwd.getLog_name());
-        int events_stated = es.map((Function<ExistenceState,Integer>)x->{
-            return (int)((int)x.getOccurrences()*x.getContained());
-        }).reduce((Function2<Integer,Integer,Integer>)(x,y)->{
-            return x+y;
-        });
+        Dataset<ExistenceState> es = declareDBConnector.queryExistenceState(qwd.getLog_name());
+        int events_stated = es.withColumn("total",functions.col("occurrences")
+                        .multiply(functions.col("contained")))
+                .agg(functions.sum("total").cast("int"))
+                .as(Encoders.INT())
+                .collectAsList()
+                .get(0);
+
         qwd.setIndexedEvents(events_stated);
 
         if(qwd.getIndexedEvents()==metadata.getEvents()){

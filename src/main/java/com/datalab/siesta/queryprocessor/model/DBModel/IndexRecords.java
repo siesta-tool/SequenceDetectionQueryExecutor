@@ -16,12 +16,8 @@ public class IndexRecords {
 
     private Map<EventTypes, List<IndexPair>> records;
 
-    public IndexRecords(List<Tuple2<Tuple2<String, String>, Iterable<IndexPair>>> results) {
-        records = new HashMap<>();
-        results.forEach(x -> {
-            EventTypes et = new EventTypes(x._1._1, x._1._2);
-            records.put(et, Lists.newArrayList(x._2));
-        });
+    public IndexRecords(Map<EventTypes,List<IndexPair>> results) {
+        this.records = results;
     }
 
     public Map<EventTypes, List<IndexPair>> getRecords() {

@@ -3,7 +3,15 @@ package com.datalab.siesta.queryprocessor.declare.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
 public class EventSupport {
 
     @JsonProperty("ev")
@@ -11,28 +19,5 @@ public class EventSupport {
     @JsonProperty("support")
     @JsonSerialize(using = SupportSerializer.class)
     protected Double support;
-
-    public EventSupport(String event, double support) {
-        this.event = event;
-        this.support = support;
-    }
-
-    public EventSupport() {
-    }
-
-    public String getEvent() {
-        return event;
-    }
-
-    public void setEvent(String event) {
-        this.event = event;
-    }
-
-    public double getSupport() {
-        return support;
-    }
-
-    public void setSupport(double support) {
-        this.support = support;
-    }
 }
+

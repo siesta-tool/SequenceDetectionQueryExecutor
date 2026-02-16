@@ -57,15 +57,22 @@ public class QueryPlanExplorationAccurate extends QueryPlanPatternDetection impl
         String lastEvent = events.get(events.size() - 1).getName();
         List<Count> freqs = dbConnector.getCountForExploration(queryExploreWrapper.getLog_name(), lastEvent);
         List<Proposition> props = new ArrayList<>();
-        for (Count freq : freqs) {
-            try {
-                SimplePattern sp = (SimplePattern) queryExploreWrapper.getPattern().clone();
-                Proposition p = this.patternDetection(sp, freq.getEventB(), qw.getLog_name());
-                if (p != null) props.add(p);
-            } catch (CloneNotSupportedException e) {
-                throw new RuntimeException(e);
-            }
+        if (queryExploreWrapper.getPattern().getEvents().size() > 1) {
+            for (Count freq : freqs) {
+                try {
+                    SimplePattern sp = (SimplePattern) queryExploreWrapper.getPattern().clone();
+                    Proposition p = this.patternDetection(sp, freq.getEventB(), qw.getLog_name());
+                    if (p != null) props.add(p);
+                } catch (CloneNotSupportedException e) {
+                    throw new RuntimeException(e);
+                }
 
+            }
+        } else if (queryExploreWrapper.getPattern().getEvents().size() == 1) {
+            for (Count freq : freqs) {
+                    props.add(new Proposition(freq.getEventB(), freq.getCount(),
+                            (double) freq.getSumDuration() / freq.getCount()));
+            }
         }
         props.sort(Collections.reverseOrder());
         return new QueryResponseExploration(props);

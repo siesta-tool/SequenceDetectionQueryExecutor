@@ -255,7 +255,8 @@ public class QueryPlanPatternDetection implements QueryPlan {
         Set<String> eventTypes = pattern.getEventTypes();
         Map<String, List<EventBoth>> fromDB = dbConnector.querySeqTable(logname, trace_ids, eventTypes, from, till);
         return fromDB.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().stream().map(s -> (Event) s)
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().stream()
+                        .sorted(Comparator.comparingInt(EventBoth::getPosition)).map(s -> (Event) s)
                 .collect(Collectors.toList())));
     }
 
